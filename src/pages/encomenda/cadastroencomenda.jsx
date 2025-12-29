@@ -78,8 +78,8 @@ function CadastroEncomenda() {
     vl_cacho: "", vl_pizza: "", ds_obsdiv: ""
   });
 
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [abaAtiva, setAbaAtiva] = useState("cliente");
+  const [previewUrl       , setPreviewUrl       ] = useState(null);
+  const [abaAtiva         , setAbaAtiva         ] = useState("cliente");
   const [carregandoCliente, setCarregandoCliente] = useState(false);
 
   useEffect(() => {
@@ -92,6 +92,9 @@ function CadastroEncomenda() {
       const dados = location.state.encomendaParaEditar;
       console.log("Modo Edição Ativado. Dados:", dados);
 
+ if (location.state && location.state.encomendaParaEditar) {
+    console.log("telefone edição", dados.nr_telefone)
+ }
       // Tratamento da Data
       let dataFormatada = "";
       if (dados.dt_abertura) {
@@ -153,12 +156,12 @@ function CadastroEncomenda() {
   }, [location]);
 
   const menuItems = [
-    { id: "cliente", label: "Cliente", icon: <IconCliente /> },
-    { id: "tortas", label: "Tortas", icon: <IconCakeMenu /> },
-    { id: "bolos", label: "Bolos", icon: <IconCakeMenu /> },
-    { id: "salgados", label: "Salgadinhos", icon: <IconCakeMenu /> },
-    { id: "minis", label: "Mini's", icon: <IconCakeMenu /> },
-    { id: "diversos", label: "Diversos", icon: <IconCakeMenu /> },
+    { id: "cliente"  , label: "Cliente"    , icon: <IconCliente /> },
+    { id: "tortas"   , label: "Tortas"     , icon: <IconCakeMenu /> },
+    { id: "bolos"    , label: "Bolos"      , icon: <IconCakeMenu /> },
+    { id: "salgados" , label: "Salgadinhos", icon: <IconCakeMenu /> },
+    { id: "minis"    , label: "Mini's"     , icon: <IconCakeMenu /> },
+    { id: "diversos" , label: "Diversos"   , icon: <IconCakeMenu /> },
   ];
 
   const mascaraTelefoneDB = (valor) => {
@@ -351,10 +354,26 @@ function CadastroEncomenda() {
                 <div className="md:col-span-4"><label className="block text-sm font-bold text-gray-700 mb-1">Data Entrega</label><input type="date" name="dt_agendamento" value={formData.dt_agendamento} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" required /></div>
                 <div className="md:col-span-4"><label className="block text-sm font-bold text-gray-700 mb-1">Hora</label><input type="time" name="hr_horaenc" value={formData.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" required /></div>
                 <div className="md:col-span-4 flex flex-col justify-end pb-1">
-                    <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                        <span className="text-sm font-bold text-gray-700 ml-2">É para Entrega?</span>
-                        <button type="button" onClick={handleStatusToggle} className={`${formData.st_status === 2 ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2`}><span className={`${formData.st_status === 2 ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200`} /></button>
+                    
+                    
+                <div className="md:col-span-4 flex flex-col justify-end pb-1">
+                    <div className={`flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-200 shadow-sm
+                        ${formData.st_status === 1 ? 'bg-yellow-100 border-yellow-200' : ''}
+                        ${formData.st_status === 2 ? 'bg-green-100 border-green-200' : ''}
+                        ${formData.st_status === 3 ? 'bg-red-100 border-red-200' : ''}
+                    `}>
+                        <span className={`text-sm font-extrabold uppercase tracking-wide
+                            ${formData.st_status === 1 ? 'text-yellow-700' : ''}
+                            ${formData.st_status === 2 ? 'text-green-700' : ''}
+                            ${formData.st_status === 3 ? 'text-red-700' : ''}
+                        `}>
+                            {formData.st_status === 1 && "🕒 Aguardando Retirada"}
+                            {formData.st_status === 2 && "✅ Entrega Realizada"}
+                            {formData.st_status === 3 && "🚫 Cancelada"}
+                        </span>
                     </div>
+                </div>
+
                 </div>
                 <div className="md:col-span-12"><label className="block text-sm font-bold text-gray-700 mb-1">Observação do Cliente</label><textarea name="observacao" value={formData.observacao} onChange={handleChange} rows={3} placeholder="Observações gerais..." className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none bg-gray-50" /></div>
               </div>

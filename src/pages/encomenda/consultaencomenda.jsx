@@ -4,20 +4,19 @@ import { useNavigate } from "react-router-dom";
 // --- ÍCONES ---
 const IconSearch = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
 const IconPlus = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>;
-const IconCalendar = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const IconClock = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-const IconUser = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
 const IconPhone = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>;
 const IconFilter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
+// Ícones novos para ações
+const IconCheck = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>;
+const IconX = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>;
 
-// Componente do Menu Lateral (Reutilizado para manter o padrão)
 const Sidebar = () => (
   <aside className="w-64 bg-white shadow-xl flex flex-col z-10 border-r border-gray-200 hidden md:flex">
     <div className="p-8 flex flex-col items-center justify-center border-b border-gray-100 bg-gray-50/50">
        <img src="/logo-cafe-francesa.png" alt="Logo" className="w-20 h-20 mb-3 object-contain rounded-full bg-white p-1 border border-gray-100 shadow-sm" onError={(e) => {e.target.style.display='none'}} />
        <div className="text-center"><span className="block text-red-700 font-extrabold text-xl tracking-wider">CAFÉ</span><span className="block text-gray-600 font-semibold tracking-wide text-sm">FRANCESA</span></div>
     </div>
-    {/* Você pode adicionar os itens do menu aqui se quiser navegar */}
   </aside>
 );
 
@@ -25,14 +24,12 @@ function ConsultaEncomenda() {
   const navigate = useNavigate();
   const API_URL = "http://127.0.0.1:3001";
 
-  // 1. Pegamos a data de hoje no formato YYYY-MM-DD (padrão do input date)
   const dataHoje = new Date().toISOString().split('T')[0];
 
-  // 2. Inicializamos o estado JÁ com a data preenchida
   const [filtros, setFiltros] = useState({
     nm_nomefantasia: "",
     nr_telefone: "",
-    dt_abertura: dataHoje, // <--- AQUI A MUDANÇA: Começa com hoje em vez de vazio ""
+    dt_abertura: dataHoje,
     hr_horaenc: ""
   });
 
@@ -40,19 +37,15 @@ function ConsultaEncomenda() {
   const [loading, setLoading] = useState(false);
   const [buscaRealizada, setBuscaRealizada] = useState(false);
 
-  // 3. O useEffect executa ao abrir a tela. 
-  // Como 'filtros.dt_abertura' já tem valor, ele vai buscar as de hoje.
   useEffect(() => {
     handlePesquisar();
   }, []);
 
-  // ... (resto do código igual) ...
   const handleChange = (e) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });
   };
 
   const mascaraTelefone = (valor) => {
-    // Mesma lógica de máscara do cadastro
     valor = valor.replace(/\D/g, "").substring(0, 11);
     if (valor.length <= 10) {
         valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{4})(\d)/, "-$1-$2");
@@ -72,7 +65,6 @@ function ConsultaEncomenda() {
     setBuscaRealizada(true);
 
     try {
-      // Usamos a rota /filtrar que criamos no backend (POST)
       const response = await fetch(`${API_URL}/encomendas/filtrar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,14 +84,41 @@ function ConsultaEncomenda() {
     }
   };
 
+  // --- NOVA FUNÇÃO: Atualizar Status (Concluir/Cancelar) ---
+  const handleStatusChange = async (e, id, novoStatus) => {
+    // Impede que o clique no botão abra a tela de edição (card)
+    e.stopPropagation();
+
+    const acao = novoStatus === 2 ? "CONCLUIR" : "CANCELAR";
+    if (!window.confirm(`Deseja realmente ${acao} está encomenda?`)) return;
+
+    try {
+        const response = await fetch(`${API_URL}/encomendas/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ st_status: novoStatus }) // Envia só o status
+        });
+
+        if (response.ok) {
+            // Atualiza a lista visualmente sem precisar recarregar
+            setResultados(prev => prev.map(item => 
+                item.id_ordemservicos === id ? { ...item, st_status: novoStatus } : item
+            ));
+        } else {
+            alert("Erro ao atualizar status");
+        }
+    } catch (error) {
+        console.error("Erro:", error);
+        alert("Erro de conexão");
+    }
+  };
+
   const handleEditar = (encomenda) => {
-    // Navega para a tela de cadastro PASSANDO os dados da encomenda
-    // Isso requer ajuste na tela de cadastro para ler 'state'
     navigate('/cadastro-encomendas', { state: { encomendaParaEditar: encomenda } });
   };
 
   const handleNovaEncomenda = () => {
-    navigate('/cadastro-encomendas'); // Vai para a tela vazia
+    navigate('/cadastro-encomendas');
   };
 
   return (
@@ -107,7 +126,6 @@ function ConsultaEncomenda() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* CABEÇALHO */}
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -127,10 +145,8 @@ function ConsultaEncomenda() {
           </div>
         </header>
 
-        {/* ÁREA DE CONTEÚDO */}
         <div className="flex-1 p-8 overflow-y-auto">
           
-          {/* FILTROS */}
           <form onSubmit={handlePesquisar} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8 animate-fadeIn">
             <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold border-b border-gray-100 pb-2">
                 <IconFilter /> Filtros de Pesquisa
@@ -165,51 +181,100 @@ function ConsultaEncomenda() {
             </div>
           </form>
 
-          {/* LISTAGEM DE RESULTADOS */}
           <div className="space-y-4">
             {resultados.length > 0 ? (
-              resultados.map((item, index) => (
-                <div 
-                  key={item.id_ordemservicos || index} 
-                  onClick={() => handleEditar(item)}
-                  className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-red-300 cursor-pointer transition-all flex justify-between items-center group"
-                >
-                  <div className="flex gap-6 items-center">
-                    {/* Data e Hora Box */}
-                    <div className="bg-red-50 px-4 py-2 rounded-lg text-center min-w-[90px] border border-red-100 group-hover:bg-red-100 transition-colors">
-                        <div className="text-xs text-red-600 font-bold uppercase tracking-wider">Entrega</div>
-                        <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
-                        <div className="text-sm font-semibold text-gray-600 flex items-center justify-center gap-1">
-                            <IconClock /> {item.hr_horaenc}
-                        </div>
-                    </div>
+              resultados.map((item, index) => {
+                
+                // --- LÓGICA DE CORES ---
+                // Verifica o status e define as classes de cor (Amarelo, Verde, Vermelho)
+                // Usei '==' para comparar string ou number (1 ou '1')
+                const status = item.st_status;
+                let cardColorClass = "border-gray-200 hover:border-gray-300"; // Padrão
+                let badgeClass = "bg-gray-100 text-gray-700 border-gray-200";
+                let statusText = "Desconhecido";
 
-                    {/* Dados do Cliente */}
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 group-hover:text-red-600 transition-colors">
-                            {item.nm_nomefantasia || "Cliente sem nome"}
-                        </h3>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                            <span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone || "Sem telefone"}</span>
-                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-xs font-medium">
-                                ID: {item.id_ordemservicos}
-                            </span>
-                        </div>
-                    </div>
-                  </div>
+                if (status == 1) { // AGUARDANDO
+                    cardColorClass = "border-yellow-200 bg-yellow-50/30 hover:border-yellow-400";
+                    badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
+                    statusText = "🕒 Aguardando entrega";
+                } else if (status == 2) { // CONCLUÍDO
+                    cardColorClass = "border-green-200 bg-green-50/30 hover:border-green-400";
+                    badgeClass = "bg-green-100 text-green-800 border-green-200";
+                    statusText = "✅ Entrega realizada";
+                } else if (status == 3) { // CANCELADO
+                    cardColorClass = "border-red-200 bg-red-50/30 hover:border-red-400 opacity-75";
+                    badgeClass = "bg-red-100 text-red-800 border-red-200";
+                    statusText = "🚫 Entrega cancelada";
+                }
 
-                  {/* Seta e Status */}
-                  <div className="flex items-center gap-4">
-                     {/* Badge de Status (Exemplo) */}
-                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${item.st_status === '2' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
-                        {item.st_status === '2' ? 'Entrega' : 'Retirada'}
-                     </span>
-                     <svg className="w-6 h-6 text-gray-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                     </svg>
-                  </div>
-                </div>
-              ))
+                return (
+                    <div 
+                      key={item.id_ordemservicos || index} 
+                      onClick={() => handleEditar(item)}
+                      className={`p-5 rounded-xl border shadow-sm hover:shadow-md cursor-pointer transition-all flex justify-between items-center group ${cardColorClass}`}
+                    >
+                      <div className="flex gap-6 items-center">
+                        {/* Data e Hora */}
+                        <div className={`px-4 py-2 rounded-lg text-center min-w-[90px] border transition-colors bg-white ${status == 3 ? 'border-red-100' : 'border-gray-100'}`}>
+                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Entrega</div>
+                            <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
+                            <div className="text-sm font-semibold text-gray-600 flex items-center justify-center gap-1">
+                                <IconClock /> {item.hr_horaenc}
+                            </div>
+                        </div>
+
+                        {/* Dados do Cliente */}
+                        <div>
+                            <h3 className={`text-lg font-bold flex items-center gap-2 transition-colors ${status == 3 ? 'text-gray-500 line-through' : 'text-gray-800 group-hover:text-red-600'}`}>
+                                {item.nm_nomefantasia || "Cliente sem nome"}
+                            </h3>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                                <span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone || "Sem telefone"}</span>
+                                <span className="flex items-center gap-1 bg-white border border-gray-100 px-2 py-0.5 rounded text-xs font-medium">
+                                    ID: {item.id_ordemservicos}
+                                </span>
+                            </div>
+                        </div>
+                      </div>
+
+                      {/* Ações e Status */}
+                      <div className="flex items-center gap-4">
+                          
+                          {/* Badge de Status */}
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${badgeClass}`}>
+                             {statusText}
+                          </span>
+
+                          {/* BOTÕES DE AÇÃO (Só aparecem se status == 1) */}
+                          {status == 1 && (
+                              <div className="flex gap-2 pl-2 border-l border-gray-200">
+                                  <button 
+                                    onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 2)}
+                                    title="Concluir Entrega"
+                                    className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 hover:scale-110 transition-all"
+                                  >
+                                      <IconCheck />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 3)}
+                                    title="Cancelar Encomenda"
+                                    className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 hover:scale-110 transition-all"
+                                  >
+                                      <IconX />
+                                  </button>
+                              </div>
+                          )}
+
+                          {/* Seta indicando edição (some se tiver botões para não poluir, ou mantém) */}
+                          {status != 1 && (
+                              <svg className="w-6 h-6 text-gray-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                              </svg>
+                          )}
+                      </div>
+                    </div>
+                );
+              })
             ) : (
               buscaRealizada && !loading && (
                 <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
