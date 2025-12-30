@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import CadastroContribuinte from "../contribuinte/cadastrocontribuinte";
+import { useReactToPrint } from "react-to-print";
+import { TicketEncomenda } from "../../components/TicketEncomenda";
 
 // --- ÍCONES SVG ---
 const IconCliente = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>;
 const IconCakeMenu = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z"/></svg>;
 const IconPhoneInput = () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>;
 const IconUserInput = () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>;
+const IconPrinter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>;
 
 // --- COMPONENTE INTERNO PARA SWITCHES ---
 const ToggleSwitch = ({ label, checked, onChange }) => (
@@ -50,7 +53,7 @@ function CadastroEncomenda() {
   // --- ESTADO DO FORMULÁRIO ---
   const [formData, setFormData] = useState({
     // ABA CLIENTE
-    id_ordemservicos: null, // Importante para saber se é edição
+    id_ordemservicos: null, 
     id_usuarios: localStorage.getItem("id_usuario_logado") || 1,
     nr_telefone: "", nm_nomefantasia: "", dt_agendamento: "", hr_horaenc: "19:00", st_status: 1, id_contribuintes: 1, observacao: "",
 
@@ -78,8 +81,15 @@ function CadastroEncomenda() {
     vl_cacho: "", vl_pizza: "", ds_obsdiv: ""
   });
 
-  const [previewUrl       , setPreviewUrl       ] = useState(null);
-  const [abaAtiva         , setAbaAtiva         ] = useState("cliente");
+  // --- LÓGICA DE IMPRESSÃO MANUAL (Só se clicar no botão) ---
+  const componentRef = useRef();
+  const handlePrint = useReactToPrint({
+      content: () => componentRef.current,
+      documentTitle: `Pedido_${formData.id_ordemservicos || 'novo'}`,
+  });
+  
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [abaAtiva, setAbaAtiva] = useState("cliente");
   const [carregandoCliente, setCarregandoCliente] = useState(false);
 
   useEffect(() => {
@@ -92,9 +102,6 @@ function CadastroEncomenda() {
       const dados = location.state.encomendaParaEditar;
       console.log("Modo Edição Ativado. Dados:", dados);
 
- if (location.state && location.state.encomendaParaEditar) {
-    console.log("telefone edição", dados.nr_telefone)
- }
       // Tratamento da Data
       let dataFormatada = "";
       if (dados.dt_abertura) {
@@ -122,22 +129,14 @@ function CadastroEncomenda() {
           }
       });
 
-      // --- TRATAMENTO DA FOTO (BUFFER DO BANCO DE DADOS) ---
+      // --- TRATAMENTO DA FOTO ---
       if (dados.ds_fototorta) {
           try {
-              // Verifica se é o formato Buffer do Node.js (Postgres Bytea)
               if (dados.ds_fototorta.type === 'Buffer' && Array.isArray(dados.ds_fototorta.data)) {
                   const buffer = new Uint8Array(dados.ds_fototorta.data);
                   const blob = new Blob([buffer], { type: 'image/jpeg' }); 
                   const urlImagem = URL.createObjectURL(blob);
                   setPreviewUrl(urlImagem);
-                  
-                  // Mantemos o dado original no formData para saber que já tem foto, 
-                  // mas não vamos reenviar esse buffer no save se não for alterado.
-              } else if (typeof dados.ds_fototorta === 'string') {
-                  // Caso venha como Base64 (menos comum para Bytea puro, mas possível)
-                  // setPreviewUrl(`data:image/jpeg;base64,${dados.ds_fototorta}`);
-                  console.warn("Formato string recebido para imagem, verifique o backend.");
               }
           } catch (err) {
               console.error("Erro ao converter imagem do banco:", err);
@@ -194,7 +193,7 @@ function CadastroEncomenda() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-        setFormData((prev) => ({...prev, ds_fototorta: file})); // Armazena o ARQUIVO real
+        setFormData((prev) => ({...prev, ds_fototorta: file})); 
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
     }
@@ -245,40 +244,39 @@ function CadastroEncomenda() {
       ...prev,
       id_contribuintes: dadosDoModal.id_contribuintes,
       nm_nomefantasia: dadosDoModal.nm_nomefantasia, 
-      nr_telefone: dadosDoModal.nr_telefone,         
+      nr_telefone: dadosDoModal.nr_telefone,        
     }));
   };
   
-  const handleStatusToggle = () => {
-    setFormData((prev) => ({ ...prev, st_status: prev.st_status === 1 ? 2 : 1 }));
-  };
-
   const handleSalvar = async (e) => {
     e.preventDefault();
     
-    // --- 1. CRIAR FORM DATA (Para enviar arquivos binários) ---
+    // --- 1. CRIAR FORM DATA ---
     const formDataToSend = new FormData();
 
-    // Adiciona todos os campos de texto/número
     Object.keys(formData).forEach(key => {
-        // Ignora a foto aqui, vamos adicionar manualmente depois
-        // Ignora valores nulos ou undefined para limpar a request
         if (key !== 'ds_fototorta' && formData[key] !== null && formData[key] !== undefined) {
             formDataToSend.append(key, formData[key]);
         }
     });
 
-    // Tratamento da Data (garante formato correto)
-    const dataFormatada = formData.dt_agendamento || new Date().toISOString().split('T')[0];
-    formDataToSend.set('dt_abertura', dataFormatada); // set sobrescreve se já existir
+    // Ajuste da Data para o TimeZone Local
+    let dataFormatada;
+    if (formData.dt_agendamento) {
+        dataFormatada = formData.dt_agendamento;
+    } else {
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        dataFormatada = `${ano}-${mes}-${dia}`;
+    }
+    formDataToSend.set('dt_abertura', dataFormatada); 
 
     // --- 2. ADICIONAR O ARQUIVO REAL ---
-    // Verifica se tem uma nova foto selecionada (Objeto File)
     if (formData.ds_fototorta && formData.ds_fototorta instanceof File) {
         formDataToSend.append('ds_fototorta', formData.ds_fototorta);
     } 
-    // Se for edição e a foto não mudou (ainda é buffer do banco), NÃO mandamos o campo ds_fototorta.
-    // O backend vai ser esperto e manter a imagem antiga se não receber nada novo.
 
     console.log(">>> ENVIANDO FORM DATA...");
 
@@ -292,16 +290,19 @@ function CadastroEncomenda() {
     try {
         const response = await fetch(url, {
           method: method,
-          // ⚠️ NÃO colocar headers: { "Content-Type": "application/json" }
-          // O navegador define automaticamente como multipart/form-data com o boundary correto
           body: formDataToSend,
         });
 
         const data = await response.json();
         
         if (response.ok) {
-          alert(`Encomenda ${isEdicao ? 'atualizada' : 'salva'} com sucesso!`);
+          
+          // --- MENSAGEM SIMPLES SOLICITADA ---
+          alert(`Imprimindo cupom da encomenda ${formData.nm_nomefantasia || "Cliente"}...`);
+          
+          // Depois da mensagem, volta para a consulta
           navigate('/encomendas/consulta'); 
+
         } else {
           alert(`Erro ao salvar: ${data.erro || "Verifique os dados."}`);
         }
@@ -328,11 +329,19 @@ function CadastroEncomenda() {
       </aside>
 
       <main className="flex-1 p-4 md:p-8 flex flex-col h-screen overflow-hidden">
+        
+        {/* COMPONENTE DE IMPRESSÃO (INVISÍVEL - USADO SÓ SE CLICAR NO BOTÃO MANUAL) */}
+        <div style={{ display: "none" }}>
+            <div ref={componentRef}>
+                <TicketEncomenda dados={formData} />
+            </div>
+        </div>
+
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">
-             {formData.id_ordemservicos ? "Editar Pedido" : "Novo Pedido"} 
-             <span className="text-gray-400 font-light mx-2">/</span> 
-             <span className="text-red-600">{menuItems.find(i => i.id === abaAtiva)?.label}</span>
+              {formData.id_ordemservicos ? "Editar Pedido" : "Novo Pedido"} 
+              <span className="text-gray-400 font-light mx-2">/</span> 
+              <span className="text-red-600">{menuItems.find(i => i.id === abaAtiva)?.label}</span>
           </h1>
         </div>
 
@@ -353,9 +362,8 @@ function CadastroEncomenda() {
                 <div className="md:col-span-12 border-t border-gray-100 my-2"></div>
                 <div className="md:col-span-4"><label className="block text-sm font-bold text-gray-700 mb-1">Data Entrega</label><input type="date" name="dt_agendamento" value={formData.dt_agendamento} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" required /></div>
                 <div className="md:col-span-4"><label className="block text-sm font-bold text-gray-700 mb-1">Hora</label><input type="time" name="hr_horaenc" value={formData.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" required /></div>
-                <div className="md:col-span-4 flex flex-col justify-end pb-1">
-                    
-                    
+                
+                {/* STATUS VISUAL */}
                 <div className="md:col-span-4 flex flex-col justify-end pb-1">
                     <div className={`flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-200 shadow-sm
                         ${formData.st_status === 1 ? 'bg-yellow-100 border-yellow-200' : ''}
@@ -374,7 +382,6 @@ function CadastroEncomenda() {
                     </div>
                 </div>
 
-                </div>
                 <div className="md:col-span-12"><label className="block text-sm font-bold text-gray-700 mb-1">Observação do Cliente</label><textarea name="observacao" value={formData.observacao} onChange={handleChange} rows={3} placeholder="Observações gerais..." className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none bg-gray-50" /></div>
               </div>
             )}
@@ -528,7 +535,13 @@ function CadastroEncomenda() {
           <footer className="bg-gray-50 px-8 py-5 border-t border-gray-200 flex justify-between items-center">
              <button type="button" className="text-gray-500 hover:text-gray-800 text-sm font-medium underline underline-offset-2">Limpar Formulário</button>
              <div className="flex gap-3">
-                <button type="button" className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all font-medium text-sm">Exportar PDF</button>
+                <button 
+                  type="button" 
+                  onClick={handlePrint}
+                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-white hover:shadow-sm transition-all font-medium text-sm flex items-center gap-2"
+                >
+                    <IconPrinter /> Imprimir Cupom
+                </button>
                 <button type="button" onClick={() => navigate('/encomendas/consulta')} className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm">Cancelar</button>
                 <button type="submit" className="px-8 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold shadow-md hover:shadow-lg transition-all text-sm flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>

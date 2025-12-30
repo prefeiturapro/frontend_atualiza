@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useReactToPrint } from "react-to-print";
+import { TicketEncomenda } from "../../components/TicketEncomenda"; // Garanta que o nome do arquivo/export esteja correto
 
 // --- ÍCONES ---
 const IconSearch = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -7,9 +9,9 @@ const IconPlus = () => <svg className="w-5 h-5" fill="none" stroke="currentColor
 const IconClock = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const IconPhone = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>;
 const IconFilter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
-// Ícones novos para ações
 const IconCheck = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>;
 const IconX = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>;
+const IconPrinter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>;
 
 const Sidebar = () => (
   <aside className="w-64 bg-white shadow-xl flex flex-col z-10 border-r border-gray-200 hidden md:flex">
@@ -36,6 +38,34 @@ function ConsultaEncomenda() {
   const [resultados, setResultados] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscaRealizada, setBuscaRealizada] = useState(false);
+
+  // --- LÓGICA DE IMPRESSÃO ---
+  const componentRef = useRef(null); 
+  const [dadosParaImpressao, setDadosParaImpressao] = useState(null); 
+
+  const handlePrint = useReactToPrint({
+      content: () => componentRef.current,
+      documentTitle: `Pedido_${dadosParaImpressao?.id_ordemservicos || 'novo'}`,
+      onAfterPrint: () => console.log("Impressão finalizada"),
+      onPrintError: (error) => console.error("Erro na impressão:", error),
+  });
+
+  const prepararImpressao = (item) => {
+      console.log("1. Carregando dados para impressão:", item.nm_nomefantasia);
+      setDadosParaImpressao(item);
+      
+      // Delay de segurança para o React atualizar o componente escondido
+      setTimeout(() => {
+          if (componentRef.current) {
+              console.log("2. Ref encontrado. Iniciando janela de impressão...");
+              handlePrint();
+          } else {
+              console.error("ERRO: O componente de impressão não foi encontrado no DOM.");
+              alert("Erro técnico: Componente de impressão não carregou.");
+          }
+      }, 500);
+  };
+  // ---------------------------
 
   useEffect(() => {
     handlePesquisar();
@@ -84,9 +114,7 @@ function ConsultaEncomenda() {
     }
   };
 
-  // --- NOVA FUNÇÃO: Atualizar Status (Concluir/Cancelar) ---
   const handleStatusChange = async (e, id, novoStatus) => {
-    // Impede que o clique no botão abra a tela de edição (card)
     e.stopPropagation();
 
     const acao = novoStatus === 2 ? "CONCLUIR" : "CANCELAR";
@@ -96,11 +124,10 @@ function ConsultaEncomenda() {
         const response = await fetch(`${API_URL}/encomendas/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ st_status: novoStatus }) // Envia só o status
+            body: JSON.stringify({ st_status: novoStatus })
         });
 
         if (response.ok) {
-            // Atualiza a lista visualmente sem precisar recarregar
             setResultados(prev => prev.map(item => 
                 item.id_ordemservicos === id ? { ...item, st_status: novoStatus } : item
             ));
@@ -126,6 +153,19 @@ function ConsultaEncomenda() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        
+        {/* --- COMPONENTE INVISÍVEL PARA IMPRESSÃO ---
+            Técnica corrigida: 
+            1. Usamos overflow hidden com altura/largura zero (não display none).
+            2. REMOVEMOS A CONDIÇÃO {dados && ...}. O componente é renderizado sempre.
+               Isso garante que o 'ref' sempre aponte para um elemento DOM real.
+        */}
+        <div style={{ overflow: "hidden", height: 0, width: 0 }}>
+            <div ref={componentRef}>
+                <TicketEncomenda dados={dadosParaImpressao} />
+            </div>
+        </div>
+
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -185,23 +225,20 @@ function ConsultaEncomenda() {
             {resultados.length > 0 ? (
               resultados.map((item, index) => {
                 
-                // --- LÓGICA DE CORES ---
-                // Verifica o status e define as classes de cor (Amarelo, Verde, Vermelho)
-                // Usei '==' para comparar string ou number (1 ou '1')
                 const status = item.st_status;
-                let cardColorClass = "border-gray-200 hover:border-gray-300"; // Padrão
+                let cardColorClass = "border-gray-200 hover:border-gray-300";
                 let badgeClass = "bg-gray-100 text-gray-700 border-gray-200";
                 let statusText = "Desconhecido";
 
-                if (status == 1) { // AGUARDANDO
+                if (status == 1) { 
                     cardColorClass = "border-yellow-200 bg-yellow-50/30 hover:border-yellow-400";
                     badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
-                    statusText = "🕒 Aguardando entrega";
-                } else if (status == 2) { // CONCLUÍDO
+                    statusText = "🕒 Aguardando";
+                } else if (status == 2) { 
                     cardColorClass = "border-green-200 bg-green-50/30 hover:border-green-400";
                     badgeClass = "bg-green-100 text-green-800 border-green-200";
                     statusText = "✅ Entrega realizada";
-                } else if (status == 3) { // CANCELADO
+                } else if (status == 3) {
                     cardColorClass = "border-red-200 bg-red-50/30 hover:border-red-400 opacity-75";
                     badgeClass = "bg-red-100 text-red-800 border-red-200";
                     statusText = "🚫 Entrega cancelada";
@@ -214,7 +251,6 @@ function ConsultaEncomenda() {
                       className={`p-5 rounded-xl border shadow-sm hover:shadow-md cursor-pointer transition-all flex justify-between items-center group ${cardColorClass}`}
                     >
                       <div className="flex gap-6 items-center">
-                        {/* Data e Hora */}
                         <div className={`px-4 py-2 rounded-lg text-center min-w-[90px] border transition-colors bg-white ${status == 3 ? 'border-red-100' : 'border-gray-100'}`}>
                             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Entrega</div>
                             <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
@@ -223,7 +259,6 @@ function ConsultaEncomenda() {
                             </div>
                         </div>
 
-                        {/* Dados do Cliente */}
                         <div>
                             <h3 className={`text-lg font-bold flex items-center gap-2 transition-colors ${status == 3 ? 'text-gray-500 line-through' : 'text-gray-800 group-hover:text-red-600'}`}>
                                 {item.nm_nomefantasia || "Cliente sem nome"}
@@ -237,7 +272,6 @@ function ConsultaEncomenda() {
                         </div>
                       </div>
 
-                      {/* Ações e Status */}
                       <div className="flex items-center gap-4">
                           
                           {/* Badge de Status */}
@@ -245,7 +279,16 @@ function ConsultaEncomenda() {
                              {statusText}
                           </span>
 
-                          {/* BOTÕES DE AÇÃO (Só aparecem se status == 1) */}
+                          {/* --- BOTÃO DE IMPRIMIR NA LISTA --- */}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); prepararImpressao(item); }}
+                            title="Imprimir Cupom"
+                            className="p-2 text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition-all shadow-sm"
+                          >
+                              <IconPrinter />
+                          </button>
+
+                          {/* BOTÕES DE AÇÃO */}
                           {status == 1 && (
                               <div className="flex gap-2 pl-2 border-l border-gray-200">
                                   <button 
@@ -265,7 +308,6 @@ function ConsultaEncomenda() {
                               </div>
                           )}
 
-                          {/* Seta indicando edição (some se tiver botões para não poluir, ou mantém) */}
                           {status != 1 && (
                               <svg className="w-6 h-6 text-gray-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />

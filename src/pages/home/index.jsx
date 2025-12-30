@@ -6,15 +6,15 @@ function Home() {
   const [empregados, setEmpregados] = useState([]);
   const [cores, setCores] = useState({});
 
-const BASE_URL = import.meta.env.VITE_API_URL || "";
+  const BASE_URL = import.meta.env.VITE_API_URL || "";
   
-  // PALETA DE CORES FIXA (Tons um pouco mais escuros para o texto branco aparecer bem)
-const CORES_PALETA = [
-  "#2563eb", // Azul (Blue 600)
-  "#dc2626", // Vermelho (Red 600)
-  "#16a34a", // Verde (Green 600)
-  "#d97706", // Amarelo Queimado/Ouro (Yellow 600) - Para dar leitura com texto branco
- ];
+  // PALETA DE CORES FIXA
+  const CORES_PALETA = [
+    "#2563eb", // Azul (Blue 600)
+    "#dc2626", // Vermelho (Red 600)
+    "#16a34a", // Verde (Green 600)
+    "#d97706", // Amarelo Queimado/Ouro (Yellow 600)
+  ];
 
   useEffect(() => {
     carregarEncomendas();
@@ -40,20 +40,15 @@ const CORES_PALETA = [
       if (!res.ok) throw new Error("Erro ao carregar empregados");
       const data = await res.json();
       
-      // Ordena por nome ou ID para garantir que a ordem seja sempre a mesma
       const empregadosOrdenados = data.sort((a, b) => a.id_empregados - b.id_empregados);
-      
       setEmpregados(empregadosOrdenados);
 
       // --- LOGICA DAS CORES FIXAS ---
       const mapaCores = {};
-      
       empregadosOrdenados.forEach((emp, index) => {
-        // O operador % faz o loop: 0, 1, 2, 3, 0, 1, 2...
         const corEscolhida = CORES_PALETA[index % CORES_PALETA.length];
         mapaCores[emp.id_empregados] = corEscolhida;
       });
-      
       setCores(mapaCores);
 
     } catch (err) {
@@ -62,7 +57,6 @@ const CORES_PALETA = [
     }
   }
 
-  // ... (Mantenha a função agruparPorId igualzinha estava) ...
   function agruparPorId() {
     const grupos = {};
     empregados.forEach(emp => {
@@ -72,7 +66,10 @@ const CORES_PALETA = [
       };
     });
     encomendas.forEach(enc => {
-      const idFuncionario = enc.id_empregado; 
+      // ATENÇÃO: Confirme se o campo que vem do backend é 'id_empregado' ou 'id_usuarios'
+      // Ajuste aqui conforme o retorno do seu SELECT *
+      const idFuncionario = enc.id_empregado || enc.id_usuarios; 
+      
       if (grupos[idFuncionario]) {
         grupos[idFuncionario].lista.push(enc);
       }
@@ -96,8 +93,8 @@ const CORES_PALETA = [
             <div 
               className="p-3 text-white font-bold text-center text-lg uppercase tracking-wider shadow-sm"
               style={{
-                backgroundColor: cores[id] || '#9ca3af', // Usa a cor do mapa
-                textShadow: '0px 1px 2px rgba(0,0,0,0.3)' // Sombra no texto para leitura melhor no amarelo
+                backgroundColor: cores[id] || '#9ca3af',
+                textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
               }}
             >
               {dadosDoGrupo.nome} 
@@ -114,19 +111,48 @@ const CORES_PALETA = [
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {dadosDoGrupo.lista.map((enc, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 border-r font-bold text-red-600 text-center">
-                         {enc.hora}
-                      </td>
-                      <td className="px-4 py-3 border-r text-gray-700 truncate max-w-[150px]" title={enc.cliente}>
-                        {enc.cliente}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 font-medium">
-                        {enc.produto_nome || enc.ds_grupo} 
-                      </td>
-                    </tr>
-                  ))}
+                  {dadosDoGrupo.lista.map((enc, i) => {
+                    
+
+                    // ADICIONE ESTA LINHA TEMPORARIAMENTE
+                    console.log(`Encomenda: ${enc.nm_nomefantasia}, Status:`, enc.st_status);
+
+                    // --- LÓGICA VISUAL DO STATUS ---
+                    // 1 = Pendente | 2 = Entregue | 3 = Cancelado
+                    const isPendente = enc.st_status == 1;
+                    const isEntregue = enc.st_status == 2;
+                    const isCancelado = enc.st_status == 3;
+
+                    let rowClass = "hover:bg-gray-50 transition-colors";
+                    let textStyle = "text-gray-700";
+                    let horaStyle = "font-bold text-red-600";
+
+                    if (isEntregue) {
+                        rowClass = "bg-green-50 hover:bg-green-100 opacity-70"; 
+                        textStyle = "text-green-800 line-through decoration-green-600 font-medium";
+                        horaStyle = "text-green-800 line-through decoration-green-600";
+                    } else if (isCancelado) {
+                        rowClass = "bg-red-50 hover:bg-red-100 opacity-70";
+                        textStyle = "text-red-800 line-through decoration-red-600 font-medium";
+                        horaStyle = "text-red-800 line-through decoration-red-600";
+                    }
+
+                    return (
+                      <tr key={i} className={rowClass}>
+                        <td className={`px-4 py-3 border-r text-center ${horaStyle}`}>
+                            {/* Usa hr_horaenc se vier do banco, ou hora se vier tratado */}
+                            {enc.hr_horaenc || enc.hora}
+                        </td>
+                        <td className={`px-4 py-3 border-r truncate max-w-[150px] ${textStyle}`} title={enc.nm_nomefantasia || enc.cliente}>
+                          {enc.nm_nomefantasia || enc.cliente}
+                        </td>
+                        <td className={`px-4 py-3 ${textStyle}`}>
+                          {enc.produto_nome || enc.ds_grupo || "Encomenda"} 
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  
                   {dadosDoGrupo.lista.length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-4 py-8 text-gray-400 text-center italic">
