@@ -101,7 +101,7 @@ const dicionarioProdutos = {
     ds_obsdiv: "Obs. Diversos"
 };
 
-export const TicketEncomenda = ({ dados }) => {
+export const ticketencomenda = ({ dados }) => {
     
     // Se não houver dados, não renderiza nada (evita erros)
     if (!dados) return <div className="p-4 text-center font-mono">Carregando dados do cupom...</div>;
