@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import CadastroContribuinte from "../contribuinte/cadastrocontribuinte";
 import { useReactToPrint } from "react-to-print";
-import {TicketEncomenda } from "../../components/ticketencomenda";
+//import {TicketEncomenda } from "../../components/ticketencomenda";
 
 // --- ÍCONES SVG ---
 const IconCliente = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>;
@@ -55,7 +55,9 @@ function CadastroEncomenda() {
     // ABA CLIENTE
     id_ordemservicos: null, 
     id_usuarios: localStorage.getItem("id_usuario_logado") || 1,
-    nr_telefone: "", nm_nomefantasia: "", dt_agendamento: "", hr_horaenc: "19:00", st_status: 1, id_contribuintes: 1, observacao: "",
+    nr_telefone: "", nm_nomefantasia: "", 
+    dt_agendamento: new Date().toISOString().split('T')[0],
+    hr_horaenc: "19:00", st_status: 1, id_contribuintes: 1, observacao: "",
 
     // ABA TORTAS
     ds_recheio: "", ds_decoracao: "", vl_tamanho: "", ds_topo: "N", ds_papel: "N", ds_gliter: "N", ds_redonda: "N", ds_quadrada: "N",
@@ -331,12 +333,13 @@ function CadastroEncomenda() {
       <main className="flex-1 p-4 md:p-8 flex flex-col h-screen overflow-hidden">
         
         {/* COMPONENTE DE IMPRESSÃO (INVISÍVEL - USADO SÓ SE CLICAR NO BOTÃO MANUAL) */}
+    {/* 
         <div style={{ display: "none" }}>
             <div ref={componentRef}>
                 <TicketEncomenda dados={formData} />
             </div>
         </div>
-
+*/}
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">
               {formData.id_ordemservicos ? "Editar Pedido" : "Novo Pedido"} 

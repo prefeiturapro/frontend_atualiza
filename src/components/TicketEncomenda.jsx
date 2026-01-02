@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // Mapeamento de campos do banco para nomes legíveis no cupom
@@ -101,8 +102,11 @@ const dicionarioProdutos = {
     ds_obsdiv: "Obs. Diversos"
 };
 
-export const ticketencomenda = ({ dados }) => {
+export const TicketEncomenda = ({ dados }) => {
     
+
+    if (!dados) return null;
+
     // Se não houver dados, não renderiza nada (evita erros)
     if (!dados) return <div className="p-4 text-center font-mono">Carregando dados do cupom...</div>;
 

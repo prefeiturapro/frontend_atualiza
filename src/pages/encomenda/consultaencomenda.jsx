@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
+import { TicketEncomenda } from "../../components/TicketEncomenda.jsx";
 import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
-import { TicketEncomenda } from "../../components/ticketencomenda"; // Garanta que o nome do arquivo/export esteja correto
+
 
 // --- ÍCONES ---
 const IconSearch = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -154,17 +155,13 @@ function ConsultaEncomenda() {
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* --- COMPONENTE INVISÍVEL PARA IMPRESSÃO ---
-            Técnica corrigida: 
-            1. Usamos overflow hidden com altura/largura zero (não display none).
-            2. REMOVEMOS A CONDIÇÃO {dados && ...}. O componente é renderizado sempre.
-               Isso garante que o 'ref' sempre aponte para um elemento DOM real.
-        */}
-        <div style={{ overflow: "hidden", height: 0, width: 0 }}>
-            <div ref={componentRef}>
-                <TicketEncomenda dados={dadosParaImpressao} />
-            </div>
-        </div>
+<div style={{ position: "fixed", top: "-10000px", left: "-10000px", zIndex: -1000 }}>
+    <div ref={componentRef}>
+        {/* A tag aqui TEM que ser <TicketEncomenda /> */}
+        <TicketEncomenda dados={dadosParaImpressao} />
+    </div>
+</div>
+
 
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
           <div>
