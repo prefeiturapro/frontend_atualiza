@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TicketEncomenda } from "../../components/TicketEncomenda.jsx";
 import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
-
+// IMPORTANDO O NOVO ARQUIVO:
+import { CupomEncomenda } from "../../components/CupomEncomenda"; 
 
 // --- ÍCONES ---
 const IconSearch = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -30,10 +30,7 @@ function ConsultaEncomenda() {
   const dataHoje = new Date().toISOString().split('T')[0];
 
   const [filtros, setFiltros] = useState({
-    nm_nomefantasia: "",
-    nr_telefone: "",
-    dt_abertura: dataHoje,
-    hr_horaenc: ""
+    nm_nomefantasia: "", nr_telefone: "", dt_abertura: dataHoje, hr_horaenc: ""
   });
 
   const [resultados, setResultados] = useState([]);
@@ -47,22 +44,16 @@ function ConsultaEncomenda() {
   const handlePrint = useReactToPrint({
       content: () => componentRef.current,
       documentTitle: `Pedido_${dadosParaImpressao?.id_ordemservicos || 'novo'}`,
-      onAfterPrint: () => console.log("Impressão finalizada"),
-      onPrintError: (error) => console.error("Erro na impressão:", error),
+      onAfterPrint: () => console.log("Impressão OK"),
+      onPrintError: (error) => console.error("Erro Impressão:", error),
   });
 
   const prepararImpressao = (item) => {
-      console.log("1. Carregando dados para impressão:", item.nm_nomefantasia);
       setDadosParaImpressao(item);
-      
-      // Delay de segurança para o React atualizar o componente escondido
+      // Delay de segurança
       setTimeout(() => {
           if (componentRef.current) {
-              console.log("2. Ref encontrado. Iniciando janela de impressão...");
               handlePrint();
-          } else {
-              console.error("ERRO: O componente de impressão não foi encontrado no DOM.");
-              alert("Erro técnico: Componente de impressão não carregou.");
           }
       }, 500);
   };
@@ -72,261 +63,106 @@ function ConsultaEncomenda() {
     handlePesquisar();
   }, []);
 
-  const handleChange = (e) => {
-    setFiltros({ ...filtros, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFiltros({ ...filtros, [e.target.name]: e.target.value });
 
   const mascaraTelefone = (valor) => {
     valor = valor.replace(/\D/g, "").substring(0, 11);
-    if (valor.length <= 10) {
-        valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{4})(\d)/, "-$1-$2");
-    } else {
-        valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{5})(\d)/, "-$1-$2");
-    }
+    if (valor.length <= 10) valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{4})(\d)/, "-$1-$2");
+    else valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{5})(\d)/, "-$1-$2");
     return valor;
   };
 
-  const handlePhoneChange = (e) => {
-    setFiltros({ ...filtros, nr_telefone: mascaraTelefone(e.target.value) });
-  };
+  const handlePhoneChange = (e) => setFiltros({ ...filtros, nr_telefone: mascaraTelefone(e.target.value) });
 
   const handlePesquisar = async (e) => {
     if(e) e.preventDefault();
     setLoading(true);
     setBuscaRealizada(true);
-
     try {
       const response = await fetch(`${API_URL}/encomendas/filtrar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filtros)
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(filtros)
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        setResultados(data);
-      } else {
-        alert("Erro ao buscar encomendas.");
-      }
-    } catch (error) {
-      console.error("Erro na busca:", error);
-    } finally {
-      setLoading(false);
-    }
+      if (response.ok) setResultados(await response.json());
+      else alert("Erro ao buscar.");
+    } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
   const handleStatusChange = async (e, id, novoStatus) => {
     e.stopPropagation();
-
-    const acao = novoStatus === 2 ? "CONCLUIR" : "CANCELAR";
-    if (!window.confirm(`Deseja realmente ${acao} está encomenda?`)) return;
-
+    if (!window.confirm(`Deseja alterar o status?`)) return;
     try {
         const response = await fetch(`${API_URL}/encomendas/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ st_status: novoStatus })
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ st_status: novoStatus })
         });
-
-        if (response.ok) {
-            setResultados(prev => prev.map(item => 
-                item.id_ordemservicos === id ? { ...item, st_status: novoStatus } : item
-            ));
-        } else {
-            alert("Erro ao atualizar status");
-        }
-    } catch (error) {
-        console.error("Erro:", error);
-        alert("Erro de conexão");
-    }
+        if (response.ok) setResultados(prev => prev.map(item => item.id_ordemservicos === id ? { ...item, st_status: novoStatus } : item));
+    } catch (error) { alert("Erro de conexão"); }
   };
 
-  const handleEditar = (encomenda) => {
-    navigate('/cadastro-encomendas', { state: { encomendaParaEditar: encomenda } });
-  };
-
-  const handleNovaEncomenda = () => {
-    navigate('/cadastro-encomendas');
-  };
+  const handleEditar = (enc) => navigate('/cadastro-encomendas', { state: { encomendaParaEditar: enc } });
+  const handleNovaEncomenda = () => navigate('/cadastro-encomendas');
 
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
       <Sidebar />
-
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         
-<div style={{ position: "fixed", top: "-10000px", left: "-10000px", zIndex: -1000 }}>
-    <div ref={componentRef}>
-        {/* A tag aqui TEM que ser <TicketEncomenda /> */}
-        <TicketEncomenda dados={dadosParaImpressao} />
-    </div>
-</div>
-
+        {/* --- NOVO COMPONENTE DE IMPRESSÃO --- */}
+        <div style={{ overflow: "hidden", height: 0 }}>
+            <div ref={componentRef}>
+                {/* Aqui está o segredo: usar || {} e o novo componente */}
+                <CupomEncomenda dados={dadosParaImpressao || {}} />
+            </div>
+        </div>
 
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <span className="text-red-600 bg-red-50 p-2 rounded-lg"><IconSearch /></span>
-              Consulta de Encomendas
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">Gerencie e localize pedidos rapidamente.</p>
-          </div>
-          
+          <div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><span className="text-red-600 bg-red-50 p-2 rounded-lg"><IconSearch /></span>Consulta de Encomendas</h1><p className="text-sm text-gray-500 mt-1">Gerencie e localize pedidos rapidamente.</p></div>
           <div className="flex gap-3">
-             <button onClick={() => navigate('/menu')} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
-                Voltar Menu
-             </button>
-             <button onClick={handleNovaEncomenda} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                <IconPlus /> Nova Encomenda
-             </button>
+             <button onClick={() => navigate('/menu')} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">Voltar Menu</button>
+             <button onClick={handleNovaEncomenda} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"><IconPlus /> Nova Encomenda</button>
           </div>
         </header>
 
         <div className="flex-1 p-8 overflow-y-auto">
-          
           <form onSubmit={handlePesquisar} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8 animate-fadeIn">
-            <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold border-b border-gray-100 pb-2">
-                <IconFilter /> Filtros de Pesquisa
-            </div>
-            
+            <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold border-b border-gray-100 pb-2"><IconFilter /> Filtros de Pesquisa</div>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label>
-                <input type="text" name="nm_nomefantasia" value={filtros.nm_nomefantasia} onChange={handleChange} placeholder="Nome do cliente..." className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" />
-              </div>
-              
-              <div className="md:col-span-3">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefone</label>
-                <input type="text" name="nr_telefone" value={filtros.nr_telefone} onChange={handlePhoneChange} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label>
-                <input type="date" name="dt_abertura" value={filtros.dt_abertura} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label>
-                <input type="time" name="hr_horaenc" value={filtros.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50" />
-              </div>
-
-              <div className="md:col-span-1 flex items-end">
-                <button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors shadow-sm flex justify-center items-center">
-                  {loading ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span> : <IconSearch />}
-                </button>
-              </div>
+              <div className="md:col-span-4"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label><input type="text" name="nm_nomefantasia" value={filtros.nm_nomefantasia} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+              <div className="md:col-span-3"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefone</label><input type="text" name="nr_telefone" value={filtros.nr_telefone} onChange={handlePhoneChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+              <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label><input type="date" name="dt_abertura" value={filtros.dt_abertura} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+              <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label><input type="time" name="hr_horaenc" value={filtros.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+              <div className="md:col-span-1 flex items-end"><button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-sm flex justify-center items-center">{loading ? "..." : <IconSearch />}</button></div>
             </div>
           </form>
 
           <div className="space-y-4">
             {resultados.length > 0 ? (
               resultados.map((item, index) => {
-                
                 const status = item.st_status;
-                let cardColorClass = "border-gray-200 hover:border-gray-300";
-                let badgeClass = "bg-gray-100 text-gray-700 border-gray-200";
-                let statusText = "Desconhecido";
-
-                if (status == 1) { 
-                    cardColorClass = "border-yellow-200 bg-yellow-50/30 hover:border-yellow-400";
-                    badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
-                    statusText = "🕒 Aguardando";
-                } else if (status == 2) { 
-                    cardColorClass = "border-green-200 bg-green-50/30 hover:border-green-400";
-                    badgeClass = "bg-green-100 text-green-800 border-green-200";
-                    statusText = "✅ Entrega realizada";
-                } else if (status == 3) {
-                    cardColorClass = "border-red-200 bg-red-50/30 hover:border-red-400 opacity-75";
-                    badgeClass = "bg-red-100 text-red-800 border-red-200";
-                    statusText = "🚫 Entrega cancelada";
-                }
+                let badgeClass = status == 1 ? "bg-yellow-100 text-yellow-800" : status == 2 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+                let statusText = status == 1 ? "🕒 Aguardando" : status == 2 ? "✅ Entregue" : "🚫 Cancelado";
 
                 return (
-                    <div 
-                      key={item.id_ordemservicos || index} 
-                      onClick={() => handleEditar(item)}
-                      className={`p-5 rounded-xl border shadow-sm hover:shadow-md cursor-pointer transition-all flex justify-between items-center group ${cardColorClass}`}
-                    >
+                    <div key={item.id_ordemservicos || index} onClick={() => handleEditar(item)} className="p-5 rounded-xl border border-gray-200 hover:shadow-md cursor-pointer bg-white flex justify-between items-center group">
                       <div className="flex gap-6 items-center">
-                        <div className={`px-4 py-2 rounded-lg text-center min-w-[90px] border transition-colors bg-white ${status == 3 ? 'border-red-100' : 'border-gray-100'}`}>
-                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Entrega</div>
+                        <div className="px-4 py-2 rounded-lg text-center border bg-gray-50">
                             <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
-                            <div className="text-sm font-semibold text-gray-600 flex items-center justify-center gap-1">
-                                <IconClock /> {item.hr_horaenc}
-                            </div>
+                            <div className="text-sm font-semibold text-gray-600 flex justify-center gap-1"><IconClock /> {item.hr_horaenc}</div>
                         </div>
-
                         <div>
-                            <h3 className={`text-lg font-bold flex items-center gap-2 transition-colors ${status == 3 ? 'text-gray-500 line-through' : 'text-gray-800 group-hover:text-red-600'}`}>
-                                {item.nm_nomefantasia || "Cliente sem nome"}
-                            </h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                <span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone || "Sem telefone"}</span>
-                                <span className="flex items-center gap-1 bg-white border border-gray-100 px-2 py-0.5 rounded text-xs font-medium">
-                                    ID: {item.id_ordemservicos}
-                                </span>
-                            </div>
+                            <h3 className="text-lg font-bold text-gray-800 group-hover:text-red-600">{item.nm_nomefantasia || "Cliente"}</h3>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500"><span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone}</span></div>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-4">
-                          
-                          {/* Badge de Status */}
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${badgeClass}`}>
-                             {statusText}
-                          </span>
-
-                          {/* --- BOTÃO DE IMPRIMIR NA LISTA --- */}
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); prepararImpressao(item); }}
-                            title="Imprimir Cupom"
-                            className="p-2 text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition-all shadow-sm"
-                          >
-                              <IconPrinter />
-                          </button>
-
-                          {/* BOTÕES DE AÇÃO */}
-                          {status == 1 && (
-                              <div className="flex gap-2 pl-2 border-l border-gray-200">
-                                  <button 
-                                    onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 2)}
-                                    title="Concluir Entrega"
-                                    className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 hover:scale-110 transition-all"
-                                  >
-                                      <IconCheck />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 3)}
-                                    title="Cancelar Encomenda"
-                                    className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 hover:scale-110 transition-all"
-                                  >
-                                      <IconX />
-                                  </button>
-                              </div>
-                          )}
-
-                          {status != 1 && (
-                              <svg className="w-6 h-6 text-gray-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                              </svg>
-                          )}
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${badgeClass}`}>{statusText}</span>
+                          <button onClick={(e) => { e.stopPropagation(); prepararImpressao(item); }} className="p-2 text-gray-500 border rounded-lg hover:bg-gray-100"><IconPrinter /></button>
+                          {status == 1 && (<div className="flex gap-2 pl-2 border-l"><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 2)} className="p-2 bg-green-100 text-green-600 rounded-full hover:scale-110"><IconCheck /></button><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 3)} className="p-2 bg-red-100 text-red-600 rounded-full hover:scale-110"><IconX /></button></div>)}
                       </div>
                     </div>
                 );
               })
-            ) : (
-              buscaRealizada && !loading && (
-                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
-                    <div className="inline-block p-4 bg-gray-50 rounded-full mb-3 text-gray-400">
-                        <IconSearch />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-600">Nenhuma encomenda encontrada</h3>
-                    <p className="text-gray-400 text-sm mt-1">Tente mudar os filtros ou cadastre um novo pedido.</p>
-                </div>
-              )
-            )}
+            ) : ( buscaRealizada && !loading && <div className="text-center py-12 bg-white rounded-2xl border border-dashed"><h3 className="text-gray-600">Nenhum pedido encontrado</h3></div> )}
           </div>
-
         </div>
       </main>
     </div>
