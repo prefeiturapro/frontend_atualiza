@@ -1,119 +1,171 @@
 import React from 'react';
 
-// Mapeamento de campos (Dicionário de Produtos)
-const dicionarioProdutos = {
-    // --- TORTAS ---
-    ds_decoracao: "Decoração", ds_recheio: "Recheio", vl_tamanho: "Tamanho (kg)",
-    ds_obstortas: "Obs. Torta", ds_topo: "Topo de Bolo", ds_papel: "Papel Arroz",
-    ds_gliter: "Gliter", ds_redonda: "Formato Redondo", ds_quadrada: "Formato Quadrado",
-    ds_menino: "Dec. Menino", ds_menina: "Dec. Menina", ds_mulher: "Dec. Mulher",
-    ds_homem: "Dec. Homem", ds_po: "Pó Decorativo", ds_tabuleiro: "Tabuleiro",
-    ds_cafeboard: "Cake Board",
+// Dicionário para "traduzir" os nomes do banco para o papel
+const labels = {
+    // TORTAS
+    ds_decoracao: "DECORAÇÃO", ds_recheio: "RECHEIO", vl_tamanho: "TAMANHO (KG)",
+    ds_redonda: "FORMATO: REDONDA", ds_quadrada: "FORMATO: QUADRADA",
+    ds_topo: "TOPO DE BOLO", ds_papel: "PAPEL ARROZ", ds_gliter: "GLITER",
+    ds_tabuleiro: "TABULEIRO", ds_cafeboard: "CAKE BOARD", ds_menino: "DEC. MENINO",
+    ds_menina: "DEC. MENINA", ds_mulher: "DEC. MULHER", ds_homem: "DEC. HOMEM",
+    ds_po: "PÓ DECORATIVO",
 
-    // --- BOLOS ---
-    vl_bolpamon: "Bolo Pamonha (kg)", vl_bolmilho: "Bolo Milho (kg)", vl_bolchoc: "Bolo Chocolate (kg)",
-    vl_bolintban: "Bolo Int. Banana (kg)", vl_bolmult: "Bolo Multicereais (kg)", vl_boltoic: "Toicinho do Céu (kg)",
-    vl_bolceno: "Bolo Cenoura (kg)", vl_bolamend: "Bolo Amendoim (kg)", vl_bolbrownie: "Brownie (kg)",
-    vl_bolprest: "Bolo Prestígio (kg)", vl_bolbanana: "Bolo Banana (kg)", vl_bolaveia: "Bolo Aveia (kg)",
-    vl_bollaranj: "Bolo Laranja (kg)", vl_bolcuca: "Cuca (kg)", ds_obsbolo: "Obs. Bolo",
+    // BOLOS
+    vl_bolpamon: "PAMONHA (KG)", vl_bolmilho: "MILHO (KG)", vl_bolchoc: "CHOCOLATE (KG)",
+    vl_bolintban: "INT. BANANA (KG)", vl_bolmult: "MULTICEREAIS (KG)", vl_boltoic: "TOICINHO CÉU (KG)",
+    vl_bolceno: "CENOURA (KG)", vl_bolamend: "AMENDOIM (KG)", vl_bolbrownie: "BROWNIE (KG)",
+    vl_bolprest: "PRESTÍGIO (KG)", vl_bolbanana: "BANANA (KG)", vl_bolaveia: "AVEIA (KG)",
+    vl_bollaranj: "LARANJA (KG)", vl_bolcuca: "CUCA (KG)",
 
-    // --- SALGADOS ---
-    vl_risfrango: "Risoles Frango (UN)", vl_rispresque: "Risoles P/Q (UN)", vl_coxinha: "Coxinha (UN)",
-    vl_pastelcar: "Pastel Carne (UN)", vl_pastelban: "Pastel Banana (UN)", vl_salsic: "Salsicha (UN)",
-    vl_quibe: "Quibe (UN)", vl_bolquei: "Bolinha Queijo (UN)", vl_rispalm: "Risoles Palmito (UN)",
-    vl_pastmil: "Pastel Milho (UN)", ds_obssalg: "Obs. Salgados",
+    // SALGADOS
+    vl_risfrango: "RISOLES FRANGO", vl_rispresque: "RISOLES P/Q", vl_coxinha: "COXINHA",
+    vl_pastelcar: "PASTEL CARNE", vl_pastelban: "PASTEL BANANA", vl_salsic: "SALSICHA",
+    vl_quibe: "QUIBE", vl_bolquei: "BOLINHA QUEIJO", vl_rispalm: "RISOLES PALMITO",
+    vl_pastmil: "PASTEL MILHO",
 
-    // --- MINI'S ---
-    vl_assadfra: "Assado Frango (UN)", vl_assadcar: "Assado Carne (UN)", vl_assadcho: "Assado Choc. (UN)",
-    vl_mindonu: "Donuts (UN)", vl_minempa: "Empadinha (UN)", vl_miniquic: "Quiche (UN)",
-    vl_minibaufr: "Bauru Frango (UN)", vl_minibaupr: "Bauru P/Q (UN)", vl_minibauca: "Bauru Calabresa (UN)",
-    vl_minicook: "Cookies (UN)", vl_minix: "Mini X (UN)", vl_minisoave: "Sonho Avelã (UN)",
-    vl_minicacho: "Cachorro Quente (UN)", vl_minipaoca: "Pão Cachorro Q. (UN)", vl_minipaofr: "Pão Francês (UN)",
-    vl_minisonre: "Sonho s/ Rech. (UN)", vl_paominix: "Pão Burguer Mini (UN)", vl_mnipizza: "Pizza (UN)",
-    ds_obsminis: "Obs. Mini's",
+    // MINIS
+    vl_assadfra: "ASSADO FRANGO", vl_assadcar: "ASSADO CARNE", vl_assadcho: "ASSADO CHOC.",
+    vl_mindonu: "DONUTS", vl_minempa: "EMPADINHA", vl_miniquic: "QUICHE",
+    vl_minibaufr: "BAURU FRANGO", vl_minibaupr: "BAURU P/Q", vl_minibauca: "BAURU CALABRESA",
+    vl_minicook: "COOKIES", vl_minix: "MINI X", vl_minisoave: "SONHO AVELÃ",
+    vl_minicacho: "CACHORRO QUENTE", vl_minipaoca: "PÃO CACHORRO Q.", vl_minipaofr: "PÃO FRANCÊS",
+    vl_minisonre: "SONHO S/ RECH.", vl_paominix: "PÃO BURGUER MINI", vl_mnipizza: "PIZZA",
 
-    // --- DIVERSOS ---
-    vl_barc: "Barquetes (UN)", vl_paofr: "Pão Francês (UN)", vl_paodoc: "Pão Doce (UN)",
-    vl_sandfrint: "Sand. Frango Int. (UN)", vl_sandfr: "Sand. Frango (UN)", vl_sandfra: "Sand. Pão Francês (UN)",
-    vl_doccam: "Docinho Camuflado (UN)", vl_cricri: "Cricri (UN)", vl_tortsa: "Torta Salgada (UN)",
-    vl_maeben: "Mãe Benta (UN)", vl_cookie: "Cookies (UN)", vl_paoque: "Pão de Queijo (UN)",
-    vl_pudin: "Pudim/Cheesecake (UN)", vl_paocach: "Pão Cachorro Q. (UN)", vl_paoham: "Pão Hambúrguer (UN)",
-    vl_marr: "Marroquino (UN)", vl_sonsere: "Sonho s/ Rech. (UN)", vl_sonavel: "Sonho Avelã (UN)",
-    vl_sondoc: "Sonho Doce Leite (UN)", vl_sonbal: "Sonho Baunilha (UN)", vl_cava: "Cavaquinho (UN)",
-    vl_empad: "Empadinha (UN)", vl_quich: "Quiche (UN)", vl_empagr: "Empadão (UN)", vl_cacho: "Cachorro Quente (UN)",
-    vl_pizza: "Pizza (UN)", ds_obsdiv: "Obs. Diversos"
+    // DIVERSOS
+    vl_barc: "BARQUETES", vl_paofr: "PÃO FRANCÊS", vl_paodoc: "PÃO DOCE",
+    vl_sandfrint: "SAND. FRANGO INT.", vl_sandfr: "SAND. FRANGO", vl_sandfra: "SAND. PÃO FRANCÊS",
+    vl_doccam: "DOCINHO CAMUFLADO", vl_cricri: "CRICRI", vl_tortsa: "TORTA SALGADA",
+    vl_maeben: "MÃE BENTA", vl_cookie: "COOKIES", vl_paoque: "PÃO DE QUEIJO",
+    vl_pudin: "PUDIM/CHEESECAKE", vl_paocach: "PÃO CACHORRO Q.", vl_paoham: "PÃO HAMBÚRGUER",
+    vl_marr: "MARROQUINO", vl_sonsere: "SONHO S/ RECH.", vl_sonavel: "SONHO AVELÃ",
+    vl_sondoc: "SONHO DOCE LEITE", vl_sonbal: "SONHO BAUNILHA", vl_cava: "CAVAQUINHO",
+    vl_empad: "EMPADINHA", vl_quich: "QUICHE", vl_empagr: "EMPADÃO", vl_cacho: "CACHORRO QUENTE",
+    vl_pizza: "PIZZA"
 };
 
-// EXPORTAÇÃO CORRETA COM O NOME NOVO
+// Definição dos grupos e quais campos pertencem a cada um
+const grupos = [
+    {
+        titulo: "TORTAS",
+        campos: ['ds_decoracao', 'ds_recheio', 'vl_tamanho', 'ds_redonda', 'ds_quadrada', 'ds_topo', 'ds_papel', 'ds_gliter', 'ds_tabuleiro', 'ds_cafeboard', 'ds_menino', 'ds_menina', 'ds_mulher', 'ds_homem', 'ds_po'],
+        obs: 'ds_obstortas'
+    },
+    {
+        titulo: "BOLOS TRADICIONAIS",
+        campos: ['vl_bolpamon', 'vl_bolmilho', 'vl_bolchoc', 'vl_bolintban', 'vl_bolmult', 'vl_boltoic', 'vl_bolceno', 'vl_bolamend', 'vl_bolbrownie', 'vl_bolprest', 'vl_bolbanana', 'vl_bolaveia', 'vl_bollaranj', 'vl_bolcuca'],
+        obs: 'ds_obsbolo'
+    },
+    {
+        titulo: "SALGADINHOS DE FESTA",
+        campos: ['vl_risfrango', 'vl_rispresque', 'vl_coxinha', 'vl_pastelcar', 'vl_pastelban', 'vl_salsic', 'vl_quibe', 'vl_bolquei', 'vl_rispalm', 'vl_pastmil'],
+        obs: 'ds_obssalg'
+    },
+    {
+        titulo: "PRODUTOS - MINI'S",
+        campos: ['vl_assadfra', 'vl_assadcar', 'vl_assadcho', 'vl_mindonu', 'vl_minempa', 'vl_miniquic', 'vl_minibaufr', 'vl_minibaupr', 'vl_minibauca', 'vl_minicook', 'vl_minix', 'vl_minisoave', 'vl_minicacho', 'vl_minipaoca', 'vl_minipaofr', 'vl_minisonre', 'vl_paominix', 'vl_mnipizza'],
+        obs: 'ds_obsminis'
+    },
+    {
+        titulo: "DIVERSOS - TAMANHO PADRÃO",
+        campos: ['vl_barc', 'vl_paofr', 'vl_paodoc', 'vl_sandfrint', 'vl_sandfr', 'vl_sandfra', 'vl_doccam', 'vl_cricri', 'vl_tortsa', 'vl_maeben', 'vl_cookie', 'vl_paoque', 'vl_pudin', 'vl_paocach', 'vl_paoham', 'vl_marr', 'vl_sonsere', 'vl_sonavel', 'vl_sondoc', 'vl_sonbal', 'vl_cava', 'vl_empad', 'vl_quich', 'vl_empagr', 'vl_cacho', 'vl_pizza'],
+        obs: 'ds_obsdiv'
+    }
+];
+
 export const CupomEncomenda = ({ dados }) => {
-    
-    // Proteção contra dados vazios
+    // Renderiza vazio se não tiver dados, para manter o componente vivo
     if (!dados || Object.keys(dados).length === 0) {
-        return <div className="p-4 font-mono text-center">Aguardando dados...</div>;
+        return <div style={{ width: '80mm', height: '100px' }}></div>;
     }
 
-    const renderLinha = (chave, valor) => {
-        if (!valor || valor === "0" || valor === 0 || valor === 'N') return null;
-        
-        const label = dicionarioProdutos[chave] || chave;
-
-        if (chave.startsWith('ds_') && (valor === 'S' || valor === true)) {
-             return (
-                <div key={chave} className="flex justify-between text-xs mb-1 pl-2">
-                    <span className="font-bold">+ {label}</span>
-                    <span>SIM</span>
-                </div>
-             );
-        }
-
-        return (
-            <div key={chave} className="flex justify-between text-xs mb-1 border-b border-dashed border-gray-300 pb-1">
-                <span className="font-semibold">{label}:</span>
-                <span className="font-bold text-right w-1/3">{valor}</span>
-            </div>
-        );
+    // Função que verifica se um grupo tem pelo menos 1 item preenchido
+    const temItemNoGrupo = (grupo) => {
+        // Verifica campos normais
+        const temCampo = grupo.campos.some(key => {
+            const val = dados[key];
+            if (!val || val === 'N' || val === '0' || val === 0) return false;
+            if (!isNaN(parseFloat(val)) && parseFloat(val) === 0) return false;
+            return true;
+        });
+        // Verifica observação
+        const temObs = dados[grupo.obs] && dados[grupo.obs].trim().length > 0;
+        return temCampo || temObs;
     };
 
-    const camposIgnorados = [
-        'id_ordemservicos', 'id_usuarios', 'id_contribuintes', 'st_status', 
-        'dt_abertura', 'hr_horaenc', 'nm_nomefantasia', 'nr_telefone', 
-        'dt_formatada', 'observacao', 'dt_agendamento', 'ds_fototorta'
-    ];
-
     return (
-        <div className="p-4 bg-white text-black font-mono" style={{ width: '80mm', minHeight: '100mm' }}>
-            <div className="text-center border-b-2 border-black pb-2 mb-2">
-                <h1 className="text-lg font-extrabold uppercase">Café Francesa</h1>
-                <p className="text-xs">Pedido: #{dados.id_ordemservicos || 'NOVO'}</p>
-                <p className="text-xs">
-                    Data: {dados.dt_formatada || dados.dt_abertura} às {dados.hr_horaenc}
-                </p>
+        <div className="bg-white text-black font-mono text-xs p-2" style={{ width: '80mm' }}>
+            
+            {/* --- CABEÇALHO --- */}
+            <div className="text-center mb-4 border-b-2 border-dashed border-black pb-2">
+                <h1 className="text-xl font-black uppercase tracking-wide">CAFÉ FRANCESA</h1>
+                <p className="mt-2 text-[10px]">PEDIDO: #{dados.id_ordemservicos}</p>
             </div>
 
-            <div className="mb-4 border-b-2 border-black pb-2">
-                <p className="text-sm font-bold">CLIENTE:</p>
-                <p className="text-sm uppercase truncate">{dados.nm_nomefantasia || "Consumidor Final"}</p>
-                <p className="text-sm">{dados.nr_telefone}</p>
+            {/* --- DADOS GERAIS --- */}
+            <div className="mb-4 border-b-2 border-dashed border-black pb-2 space-y-1">
+                <p><span className="font-bold">DATA ENTREGA:</span> {dados.dt_formatada || dados.dt_abertura}</p>
+                <p><span className="font-bold">HORA:</span> {dados.hr_horaenc}</p>
+                <p><span className="font-bold">FONE:</span> {dados.nr_telefone}</p>
+                <p className="text-sm mt-2"><span className="font-bold">CLIENTE:</span> {dados.nm_nomefantasia}</p>
+                
+                {dados.observacao && (
+                    <div className="mt-2 bg-gray-100 p-1 border border-gray-300">
+                        <span className="font-bold block">OBSERVAÇÃO GERAL:</span>
+                        <span className="uppercase">{dados.observacao}</span>
+                    </div>
+                )}
             </div>
 
-            <div className="mb-4">
-                <p className="text-center font-bold text-sm mb-2 border-b border-black">ITENS DO PEDIDO</p>
-                {Object.keys(dados).map((chave) => {
-                    if (camposIgnorados.includes(chave)) return null;
-                    return renderLinha(chave, dados[chave]);
-                })}
-            </div>
+            {/* --- ITENS AGRUPADOS --- */}
+            {grupos.map((grupo, idx) => {
+                if (!temItemNoGrupo(grupo)) return null;
 
-            {dados.observacao && (
-                <div className="mt-4 border-t-2 border-black pt-2">
-                    <p className="font-bold text-xs">OBSERVAÇÕES GERAIS:</p>
-                    <p className="text-xs italic">{dados.observacao}</p>
-                </div>
-            )}
+                return (
+                    <div key={idx} className="mb-4 border-b-2 border-dashed border-black pb-2">
+                        <h2 className="font-black text-sm mb-2 bg-black text-white text-center uppercase">{grupo.titulo}</h2>
+                        
+                        {grupo.campos.map(key => {
+                            const val = dados[key];
+                            
+                            // Lógica de Filtro (igual a anterior)
+                            if (!val || val === 'N' || val === '0' || val === 0) return null;
+                            const num = parseFloat(val);
+                            if (!isNaN(num) && num === 0) return null;
 
-            <div className="mt-8 text-center text-[10px]">
-                <p>www.cafefrancesa.com.br</p>
-                <p className="mt-2 text-[8px] text-gray-500">{new Date().toLocaleString()}</p>
+                            const label = labels[key] || key;
+                            
+                            // Se for switch (S/N), mostra apenas o nome do item
+                            if ((val === 'S' || val === true) && (key.startsWith('ds_') || key.startsWith('st_'))) {
+                                return (
+                                    <div key={key} className="flex justify-between mb-1">
+                                        <span>{label}</span>
+                                        <span className="font-bold">[ SIM ]</span>
+                                    </div>
+                                );
+                            }
+
+                            // Se for valor numérico ou texto
+                            return (
+                                <div key={key} className="flex justify-between mb-1 border-b border-gray-200 pb-0.5">
+                                    <span className="pr-2">{label}:</span>
+                                    <span className="font-bold">{val}</span>
+                                </div>
+                            );
+                        })}
+
+                        {/* Observação do Grupo */}
+                        {dados[grupo.obs] && (
+                            <div className="mt-2 text-[10px] italic">
+                                <span className="font-bold">OBS:</span> {dados[grupo.obs]}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+
+            <div className="text-center text-[9px] mt-4">
+                <p>Obrigado pela preferência!</p>
+                <p>{new Date().toLocaleString()}</p>
             </div>
         </div>
     );
