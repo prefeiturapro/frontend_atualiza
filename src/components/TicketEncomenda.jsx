@@ -1,196 +1,159 @@
+import React, { useRef, useEffect } from "react";
+import { useReactToPrint } from "react-to-print";
 
-import React from 'react';
+const TicketEncomenda = ({ isOpen, onClose, dados }) => {
+  const contentRef = useRef();
 
-// Mapeamento de campos do banco para nomes legíveis no cupom
-const dicionarioProdutos = {
-    // --- TORTAS ---
-    ds_decoracao: "Decoração",
-    ds_recheio: "Recheio",
-    vl_tamanho: "Tamanho (kg)",
-    ds_obstortas: "Obs. Torta",
-    ds_topo: "Topo de Bolo",
-    ds_papel: "Papel Arroz",
-    ds_gliter: "Gliter",
-    ds_redonda: "Formato Redondo",
-    ds_quadrada: "Formato Quadrado",
-    ds_menino: "Dec. Menino",
-    ds_menina: "Dec. Menina",
-    ds_mulher: "Dec. Mulher",
-    ds_homem: "Dec. Homem",
-    ds_po: "Pó Decorativo",
-    ds_tabuleiro: "Tabuleiro",
-    ds_cafeboard: "Cake Board",
+  // Configuração da impressão
+  const handlePrint = useReactToPrint({
+    content: () => contentRef.current,
+    documentTitle: `Pedido_${dados?.id_ordemservicos || '000'}`,
+    onAfterPrint: () => console.log("Impressão finalizada"),
+  });
 
-    // --- BOLOS ---
-    vl_bolpamon: "Bolo Pamonha (kg)",
-    vl_bolmilho: "Bolo Milho (kg)",
-    vl_bolchoc: "Bolo Chocolate (kg)",
-    vl_bolintban: "Bolo Int. Banana (kg)",
-    vl_bolmult: "Bolo Multicereais (kg)",
-    vl_boltoic: "Toicinho do Céu (kg)",
-    vl_bolceno: "Bolo Cenoura (kg)",
-    vl_bolamend: "Bolo Amendoim (kg)",
-    vl_bolbrownie: "Brownie (kg)",
-    vl_bolprest: "Bolo Prestígio (kg)",
-    vl_bolbanana: "Bolo Banana (kg)",
-    vl_bolaveia: "Bolo Aveia (kg)",
-    vl_bollaranj: "Bolo Laranja (kg)",
-    vl_bolcuca: "Cuca (kg)",
-    ds_obsbolo: "Obs. Bolo",
+  // Tenta imprimir automaticamente ao abrir (pode falhar dependendo do navegador)
+  useEffect(() => {
+    if (isOpen) {
+        // Pequeno delay para garantir que o conteúdo renderizou
+        setTimeout(() => {
+            handlePrint();
+        }, 500);
+    }
+  }, [isOpen]);
 
-    // --- SALGADOS ---
-    vl_risfrango: "Risoles Frango (UN)",
-    vl_rispresque: "Risoles P/Q (UN)",
-    vl_coxinha: "Coxinha (UN)",
-    vl_pastelcar: "Pastel Carne (UN)",
-    vl_pastelban: "Pastel Banana (UN)",
-    vl_salsic: "Salsicha (UN)",
-    vl_quibe: "Quibe (UN)",
-    vl_bolquei: "Bolinha Queijo (UN)",
-    vl_rispalm: "Risoles Palmito (UN)",
-    vl_pastmil: "Pastel Milho (UN)",
-    ds_obssalg: "Obs. Salgados",
+  if (!isOpen || !dados) return null;
 
-    // --- MINI'S ---
-    vl_assadfra: "Assado Frango (UN)",
-    vl_assadcar: "Assado Carne (UN)",
-    vl_assadcho: "Assado Choc. (UN)",
-    vl_mindonu: "Donuts (UN)",
-    vl_minempa: "Empadinha (UN)",
-    vl_miniquic: "Quiche (UN)",
-    vl_minibaufr: "Bauru Frango (UN)",
-    vl_minibaupr: "Bauru P/Q (UN)",
-    vl_minibauca: "Bauru Calabresa (UN)",
-    vl_minicook: "Cookies (UN)",
-    vl_minix: "Mini X (UN)",
-    vl_minisoave: "Sonho Avelã (UN)",
-    vl_minicacho: "Cachorro Quente (UN)",
-    vl_minipaoca: "Pão Cachorro Q. (UN)",
-    vl_minipaofr: "Pão Francês (UN)",
-    vl_minisonre: "Sonho s/ Rech. (UN)",
-    vl_paominix: "Pão Burguer Mini (UN)",
-    vl_mnipizza: "Pizza (UN)",
-    ds_obsminis: "Obs. Mini's",
+  // Formatação de Valores
+  const formataData = (dataIso) => {
+      if(!dataIso) return "--/--/----";
+      return dataIso.split('T')[0].split('-').reverse().join('/');
+  }
 
-    // --- DIVERSOS ---
-    vl_barc: "Barquetes (UN)",
-    vl_paofr: "Pão Francês (UN)",
-    vl_paodoc: "Pão Doce (UN)",
-    vl_sandfrint: "Sand. Frango Int. (UN)",
-    vl_sandfr: "Sand. Frango (UN)",
-    vl_sandfra: "Sand. Pão Francês (UN)",
-    vl_doccam: "Docinho Camuflado (UN)",
-    vl_cricri: "Cricri (UN)",
-    vl_tortsa: "Torta Salgada (UN)",
-    vl_maeben: "Mãe Benta (UN)",
-    vl_cookie: "Cookies (UN)",
-    vl_paoque: "Pão de Queijo (UN)",
-    vl_pudin: "Pudim/Cheesecake (UN)",
-    vl_paocach: "Pão Cachorro Q. (UN)",
-    vl_paoham: "Pão Hambúrguer (UN)",
-    vl_marr: "Marroquino (UN)",
-    vl_sonsere: "Sonho s/ Rech. (UN)",
-    vl_sonavel: "Sonho Avelã (UN)",
-    vl_sondoc: "Sonho Doce Leite (UN)",
-    vl_sonbal: "Sonho Baunilha (UN)",
-    vl_cava: "Cavaquinho (UN)",
-    vl_empad: "Empadinha (UN)",
-    vl_quich: "Quiche (UN)",
-    vl_empagr: "Empadão (UN)",
-    vl_cacho: "Cachorro Quente (UN)",
-    vl_pizza: "Pizza (UN)",
-    ds_obsdiv: "Obs. Diversos"
-};
-
-export const TicketEncomenda = ({ dados }) => {
-    
-
-    if (!dados) return null;
-
-    // Se não houver dados, não renderiza nada (evita erros)
-    if (!dados) return <div className="p-4 text-center font-mono">Carregando dados do cupom...</div>;
-
-    // Função para renderizar cada linha de produto
-    const renderLinha = (chave, valor) => {
-        // Ignora valores vazios, zero ou 'N' (Não)
-        if (!valor || valor === "0" || valor === 0 || valor === 'N') return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 print:hidden">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
         
-        const label = dicionarioProdutos[chave] || chave;
+        {/* CABEÇALHO DO MODAL (Visível apenas na tela) */}
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
+            <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                🖨️ Visualizar Impressão
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
+        </div>
 
-        // Se for um Switch (S/N) e estiver 'S', mostra como Adicional
-        if (chave.startsWith('ds_') && (valor === 'S' || valor === true)) {
-             return (
-                <div key={chave} className="flex justify-between text-xs mb-1 pl-2">
-                    <span className="font-bold">+ {label}</span>
-                    <span>SIM</span>
-                </div>
-             );
-        }
-
-        // Se for Texto ou Número
-        return (
-            <div key={chave} className="flex justify-between text-xs mb-1 border-b border-dashed border-gray-300 pb-1">
-                <span className="font-semibold">{label}:</span>
-                <span className="font-bold text-right w-1/3">{valor}</span>
-            </div>
-        );
-    };
-
-    // Campos que NÃO devem aparecer na lista de itens (metadados)
-    const camposIgnorados = [
-        'id_ordemservicos', 'id_usuarios', 'id_contribuintes', 'st_status', 
-        'dt_abertura', 'hr_horaenc', 'nm_nomefantasia', 'nr_telefone', 
-        'dt_formatada', 'observacao', 'dt_agendamento', 'ds_fototorta'
-    ];
-
-    return (
-        <div className="p-4 bg-white text-black font-mono" style={{ width: '80mm', minHeight: '100mm' }}>
+        {/* ÁREA DE ROLAGEM DO CUPOM */}
+        <div className="overflow-y-auto p-6 bg-gray-200 flex justify-center">
             
-            {/* --- CABEÇALHO --- */}
-            <div className="text-center border-b-2 border-black pb-2 mb-2">
-                <h1 className="text-lg font-extrabold uppercase">Café Francesa</h1>
-                <p className="text-xs">Pedido: #{dados.id_ordemservicos || 'NOVO'}</p>
-                <p className="text-xs">
-                    Data: {dados.dt_formatada || dados.dt_abertura} às {dados.hr_horaenc}
-                </p>
-            </div>
+            {/* --- O CUPOM REAL (Área que será impressa) --- */}
+            <div ref={contentRef} className="bg-white p-4 w-[80mm] min-h-[100mm] shadow-sm text-[10px] font-mono leading-tight text-black">
+                <style type="text/css" media="print">
+                    {`
+                        @page { size: 80mm auto; margin: 0; }
+                        body { margin: 0.5cm; }
+                    `}
+                </style>
 
-            {/* --- DADOS DO CLIENTE --- */}
-            <div className="mb-4 border-b-2 border-black pb-2">
-                <p className="text-sm font-bold">CLIENTE:</p>
-                <p className="text-sm uppercase truncate">{dados.nm_nomefantasia || "Consumidor Final"}</p>
-                <p className="text-sm">{dados.nr_telefone}</p>
-                
-                <div className="mt-2 text-xs font-bold border border-black p-1 text-center uppercase">
-                    {dados.st_status == 1 ? "AGUARDANDO RETIRADA" : 
-                     dados.st_status == 2 ? "ENTREGA REALIZADA" : "CANCELADO"}
+                {/* LOGO / CABEÇALHO */}
+                <div className="text-center mb-2">
+                    <h1 className="text-sm font-extrabold uppercase">CAFÉ FRANCESA</h1>
+                    <p className="mt-1">PEDIDO: #{dados.id_ordemservicos}</p>
                 </div>
-            </div>
 
-            {/* --- ITENS DO PEDIDO --- */}
-            <div className="mb-4">
-                <p className="text-center font-bold text-sm mb-2 border-b border-black">ITENS DO PEDIDO</p>
-                
-                {Object.keys(dados).map((chave) => {
-                    if (camposIgnorados.includes(chave)) return null;
-                    return renderLinha(chave, dados[chave]);
-                })}
-            </div>
+                <div className="border-b border-dashed border-black my-2"></div>
 
-            {/* --- OBSERVAÇÃO GERAL --- */}
-            {dados.observacao && (
-                <div className="mt-4 border-t-2 border-black pt-2">
-                    <p className="font-bold text-xs">OBSERVAÇÕES GERAIS:</p>
-                    <p className="text-xs italic">{dados.observacao}</p>
+                {/* DADOS GERAIS */}
+                <div className="space-y-1">
+                    <p><strong>DATA ENTREGA:</strong> {formataData(dados.dt_abertura)}</p>
+                    <p><strong>HORA:</strong> {dados.hr_horaenc}</p>
+                    <p><strong>FONE:</strong> {dados.nr_telefone}</p>
+                    <p className="uppercase"><strong>CLIENTE:</strong> {dados.nm_nomefantasia}</p>
                 </div>
-            )}
 
-            {/* --- RODAPÉ --- */}
-            <div className="mt-8 text-center text-[10px]">
-                <p>Obrigado pela preferência!</p>
-                <p>www.cafefrancesa.com.br</p>
-                <p className="mt-2 text-[8px] text-gray-500">{new Date().toLocaleString()}</p>
+                {/* OBSERVAÇÃO */}
+                {dados.observacao && (
+                    <div className="mt-2 border border-black p-1 rounded">
+                        <p className="font-bold underline">OBSERVAÇÃO GERAL:</p>
+                        <p className="uppercase break-words">{dados.observacao}</p>
+                    </div>
+                )}
+
+                <div className="border-b border-dashed border-black my-2"></div>
+
+                {/* LISTA DE ITENS */}
+                <div className="space-y-2">
+                    {/* Renderiza as categorias dinamicamente */}
+                    <RenderizaGrupo titulo="TORTAS" dados={dados} prefixo="ds_" filtro={['recheio','decoracao']} />
+                    <RenderizaGrupo titulo="SALGADINHOS" dados={dados} prefixo="vl_" ignore={['tamanho']} />
+                    {/* Você pode adicionar mais grupos aqui se necessário */}
+                </div>
+
+                <div className="border-b border-dashed border-black my-4"></div>
+
+                {/* RODAPÉ */}
+                <div className="text-center opacity-70 text-[8px]">
+                    <p>Obrigado pela preferência!</p>
+                    <p className="mt-1">{new Date().toLocaleString()}</p>
+                </div>
             </div>
         </div>
-    );
+
+        {/* RODAPÉ DO MODAL (BOTOES DE AÇÃO) */}
+        <div className="p-4 border-t border-gray-100 flex gap-3 bg-white rounded-b-lg">
+            <button 
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 font-bold"
+            >
+                Fechar
+            </button>
+            
+            {/* --- O BOTÃO QUE FALTAVA --- */}
+            <button 
+                onClick={handlePrint}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold flex items-center justify-center gap-2 shadow-lg"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                IMPRIMIR AGORA
+            </button>
+        </div>
+      </div>
+    </div>
+  );
 };
+
+// Componente Auxiliar para listar os itens (Salgados, Bolos, etc)
+const RenderizaGrupo = ({ titulo, dados, prefixo, filtro, ignore = [] }) => {
+    // Lógica simples para varrer o objeto e achar campos com valor > 0
+    const itens = Object.keys(dados).filter(key => {
+        // Se for valor numérico (ex: vl_coxinha)
+        if (prefixo === 'vl_' && key.startsWith('vl_')) {
+            const val = parseFloat(dados[key]);
+            return val > 0 && !ignore.includes(key.replace('vl_', ''));
+        }
+        // Se for texto (ex: ds_recheio)
+        if (prefixo === 'ds_' && key.startsWith('ds_') && dados[key]) {
+             if (filtro) return filtro.some(f => key.includes(f));
+             return true;
+        }
+        return false;
+    });
+
+    if (itens.length === 0) return null;
+
+    return (
+        <div className="mb-2">
+            <p className="font-bold bg-black text-white px-1 text-center mb-1">{titulo}</p>
+            {itens.map(key => {
+                const label = key.replace(prefixo, '').replace(/_/g, ' ').toUpperCase();
+                const valor = dados[key];
+                return (
+                    <div key={key} className="flex justify-between border-b border-gray-100 border-dashed">
+                        <span>{label}:</span>
+                        <span className="font-bold">{valor}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+export default TicketEncomenda;

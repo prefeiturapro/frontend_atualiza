@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
+// NÃO precisamos mais do useReactToPrint aqui
 import { CupomEncomenda } from "../../components/CupomEncomenda"; 
 
 // --- ÍCONES ---
@@ -11,7 +11,7 @@ const IconPhone = () => <svg className="w-4 h-4" fill="none" stroke="currentColo
 const IconFilter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>;
 const IconCheck = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>;
 const IconX = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>;
-const IconPrinter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>;
+const IconPrinter = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z" /></svg>;
 
 const Sidebar = () => (
   <aside className="w-64 bg-white shadow-xl flex flex-col z-10 border-r border-gray-200 hidden md:flex">
@@ -32,54 +32,33 @@ function ConsultaEncomenda() {
   const [loading, setLoading] = useState(false);
   const [buscaRealizada, setBuscaRealizada] = useState(false);
 
-  // --- LÓGICA DE IMPRESSÃO (MODAL VISÍVEL) ---
-  const componentRef = useRef(null); 
-  const [dadosParaImpressao, setDadosParaImpressao] = useState(null); // Se null, modal fecha
-  const [imprimindo, setImprimindo] = useState(false);
+  const [dadosParaImpressao, setDadosParaImpressao] = useState(null); 
 
-  const handlePrint = useReactToPrint({
-      content: () => componentRef.current,
-      documentTitle: `Pedido_${dadosParaImpressao?.id_ordemservicos || 'novo'}`,
-      onAfterPrint: () => {
-          console.log("Impressão finalizada");
-          setImprimindo(false);
-          // Opcional: Fechar automaticamente após imprimir. 
-          // Se quiser que feche sozinho, descomente a linha abaixo:
-          // setDadosParaImpressao(null); 
-      },
-      onPrintError: (error) => {
-          console.error("Erro Impressão:", error);
-          setImprimindo(false);
-      },
-  });
-
-  const prepararImpressao = (item) => {
-      setDadosParaImpressao(item); // Isso abre o modal (pois é !== null)
-      setImprimindo(true);
-      // Pequeno delay para garantir que o modal abriu e renderizou
+  // --- FUNÇÃO DE IMPRESSÃO NATIVA ---
+  const handlePrint = () => {
+      // Pequeno delay para garantir que o React renderizou tudo, depois chama a janela do navegador
       setTimeout(() => {
-          if (componentRef.current) {
-              handlePrint();
-          }
-      }, 500);
+          window.print();
+      }, 100);
+  };
+
+  const abrirModalImpressao = (item) => {
+      setDadosParaImpressao(item); 
   };
 
   const fecharModalImpressao = () => {
       setDadosParaImpressao(null);
-      setImprimindo(false);
   };
   // ---------------------------
 
   useEffect(() => { handlePesquisar(); }, []);
   const handleChange = (e) => setFiltros({ ...filtros, [e.target.name]: e.target.value });
-  
   const mascaraTelefone = (valor) => {
     valor = valor.replace(/\D/g, "").substring(0, 11);
     if (valor.length <= 10) valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{4})(\d)/, "-$1-$2");
     else valor = valor.replace(/^(\d{2})(\d)/, "$1-$2").replace(/-(\d{5})(\d)/, "-$1-$2");
     return valor;
   };
-
   const handlePhoneChange = (e) => setFiltros({ ...filtros, nr_telefone: mascaraTelefone(e.target.value) });
 
   const handlePesquisar = async (e) => {
@@ -105,96 +84,114 @@ function ConsultaEncomenda() {
   const handleNovaEncomenda = () => navigate('/cadastro-encomendas');
 
   return (
-    <div className="flex min-h-screen bg-gray-100 font-sans">
-      
-      {/* --- MODAL DE IMPRESSÃO (Visível) --- */}
-      {/* Só aparece se dadosParaImpressao existir. Garante que o conteúdo é renderizado. */}
-      {dadosParaImpressao && (
-        <div style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            backgroundColor: "rgba(0,0,0,0.5)", // Fundo escurecido
-            display: "flex", justifyContent: "center", alignItems: "center"
-        }}>
-            <div className="bg-white p-4 rounded-lg shadow-2xl flex flex-col items-center">
-                <p className="text-gray-500 text-sm font-bold mb-2">
-                    {imprimindo ? "🖨️ Preparando impressão..." : "Pré-visualização do Cupom"}
-                </p>
-                
-                {/* O CUPOM AQUI NO MEIO */}
-                <div style={{ border: "1px solid #ddd", marginBottom: "10px" }}>
-                    <div ref={componentRef}>
+    // DIV principal agora
+    <div>
+      {/* --- ESTILOS DE IMPRESSÃO (O SEGREDO) --- */}
+      <style>
+        {`
+          @media print {
+            /* Esconde tudo o que tem a classe 'no-print' */
+            .no-print { display: none !important; }
+            
+            /* Mostra o que tem a classe 'print-only' */
+            .print-only { 
+                display: block !important; 
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+                width: 100%; 
+                background: white;
+                z-index: 9999;
+            }
+            
+            /* Remove margens da página */
+            @page { margin: 0; }
+            body { margin: 0; padding: 0; background: white; }
+          }
+        `}
+      </style>
+
+      {/* --- CONTEÚDO VISUAL DO SITE (ESCONDIDO NA IMPRESSÃO) --- */}
+      <div className="flex min-h-screen bg-gray-100 font-sans no-print">
+        
+        {/* MODAL DE VISUALIZAÇÃO */}
+        {dadosParaImpressao && (
+            <div style={{ position: "fixed", inset: 0, zIndex: 9999, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <div className="bg-white p-4 rounded-lg shadow-2xl flex flex-col items-center">
+                    <p className="text-gray-500 text-sm font-bold mb-2">Visualização</p>
+                    <div style={{ border: "1px solid #ddd", marginBottom: "10px", maxHeight: "60vh", overflowY: "auto" }}>
                         <CupomEncomenda dados={dadosParaImpressao} />
                     </div>
-                </div>
-
-                <div className="flex gap-2 w-full">
-                    <button onClick={fecharModalImpressao} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-bold">
-                        Fechar
-                    </button>
-                    {!imprimindo && (
-                        <button onClick={() => handlePrint()} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">
-                            Imprimir Novamente
+                    <div className="flex gap-2 w-full mt-2">
+                        <button onClick={fecharModalImpressao} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-bold">Fechar</button>
+                        <button onClick={handlePrint} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold flex items-center justify-center gap-2">
+                            <IconPrinter /> Imprimir
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
-        </div>
-      )}
+        )}
 
-      <Sidebar />
+        <Sidebar />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
-          <div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><span className="text-red-600 bg-red-50 p-2 rounded-lg"><IconSearch /></span>Consulta de Encomendas</h1><p className="text-sm text-gray-500 mt-1">Gerencie e localize pedidos rapidamente.</p></div>
-          <div className="flex gap-3">
-             <button onClick={() => navigate('/menu')} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">Voltar Menu</button>
-             <button onClick={handleNovaEncomenda} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"><IconPlus /> Nova Encomenda</button>
-          </div>
-        </header>
+        <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+            <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
+                <div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><span className="text-red-600 bg-red-50 p-2 rounded-lg"><IconSearch /></span>Consulta de Encomendas</h1><p className="text-sm text-gray-500 mt-1">Gerencie e localize pedidos rapidamente.</p></div>
+                <div className="flex gap-3">
+                    <button onClick={() => navigate('/menu')} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">Voltar Menu</button>
+                    <button onClick={handleNovaEncomenda} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"><IconPlus /> Nova Encomenda</button>
+                </div>
+            </header>
 
-        <div className="flex-1 p-8 overflow-y-auto">
-          <form onSubmit={handlePesquisar} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8 animate-fadeIn">
-            <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold border-b border-gray-100 pb-2"><IconFilter /> Filtros de Pesquisa</div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-4"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label><input type="text" name="nm_nomefantasia" value={filtros.nm_nomefantasia} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
-              <div className="md:col-span-3"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefone</label><input type="text" name="nr_telefone" value={filtros.nr_telefone} onChange={handlePhoneChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
-              <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label><input type="date" name="dt_abertura" value={filtros.dt_abertura} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
-              <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label><input type="time" name="hr_horaenc" value={filtros.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
-              <div className="md:col-span-1 flex items-end"><button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-sm flex justify-center items-center">{loading ? "..." : <IconSearch />}</button></div>
-            </div>
-          </form>
-
-          <div className="space-y-4">
-            {resultados.length > 0 ? (
-              resultados.map((item, index) => {
-                const status = item.st_status;
-                let badgeClass = status == 1 ? "bg-yellow-100 text-yellow-800" : status == 2 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
-                let statusText = status == 1 ? "🕒 Aguardando" : status == 2 ? "✅ Entregue" : "🚫 Cancelado";
-
-                return (
-                    <div key={item.id_ordemservicos || index} onClick={() => handleEditar(item)} className="p-5 rounded-xl border border-gray-200 hover:shadow-md cursor-pointer bg-white flex justify-between items-center group">
-                      <div className="flex gap-6 items-center">
-                        <div className="px-4 py-2 rounded-lg text-center border bg-gray-50">
-                            <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
-                            <div className="text-sm font-semibold text-gray-600 flex justify-center gap-1"><IconClock /> {item.hr_horaenc}</div>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-800 group-hover:text-red-600">{item.nm_nomefantasia || "Cliente"}</h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500"><span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone}</span></div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${badgeClass}`}>{statusText}</span>
-                          <button onClick={(e) => { e.stopPropagation(); prepararImpressao(item); }} className="p-2 text-gray-500 border rounded-lg hover:bg-gray-100"><IconPrinter /></button>
-                          {status == 1 && (<div className="flex gap-2 pl-2 border-l"><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 2)} className="p-2 bg-green-100 text-green-600 rounded-full hover:scale-110"><IconCheck /></button><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 3)} className="p-2 bg-red-100 text-red-600 rounded-full hover:scale-110"><IconX /></button></div>)}
-                      </div>
+            <div className="flex-1 p-8 overflow-y-auto">
+                <form onSubmit={handlePesquisar} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8 animate-fadeIn">
+                    <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold border-b border-gray-100 pb-2"><IconFilter /> Filtros de Pesquisa</div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-4"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label><input type="text" name="nm_nomefantasia" value={filtros.nm_nomefantasia} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+                        <div className="md:col-span-3"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefone</label><input type="text" name="nr_telefone" value={filtros.nr_telefone} onChange={handlePhoneChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+                        <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label><input type="date" name="dt_abertura" value={filtros.dt_abertura} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+                        <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label><input type="time" name="hr_horaenc" value={filtros.hr_horaenc} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-gray-50" /></div>
+                        <div className="md:col-span-1 flex items-end"><button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-sm flex justify-center items-center">{loading ? "..." : <IconSearch />}</button></div>
                     </div>
-                );
-              })
-            ) : ( buscaRealizada && !loading && <div className="text-center py-12 bg-white rounded-2xl border border-dashed"><h3 className="text-gray-600">Nenhum pedido encontrado</h3></div> )}
-          </div>
-        </div>
-      </main>
+                </form>
+
+                <div className="space-y-4">
+                    {resultados.length > 0 ? (
+                        resultados.map((item, index) => {
+                            const status = item.st_status;
+                            let badgeClass = status == 1 ? "bg-yellow-100 text-yellow-800" : status == 2 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+                            let statusText = status == 1 ? "🕒 Aguardando" : status == 2 ? "✅ Entregue" : "🚫 Cancelado";
+                            return (
+                                <div key={item.id_ordemservicos || index} onClick={() => handleEditar(item)} className="p-5 rounded-xl border border-gray-200 hover:shadow-md cursor-pointer bg-white flex justify-between items-center group">
+                                    <div className="flex gap-6 items-center">
+                                        <div className="px-4 py-2 rounded-lg text-center border bg-gray-50">
+                                            <div className="text-lg font-extrabold text-gray-800">{item.dt_formatada || item.dt_abertura}</div>
+                                            <div className="text-sm font-semibold text-gray-600 flex justify-center gap-1"><IconClock /> {item.hr_horaenc}</div>
+                                        </div>
+                                        <div><h3 className="text-lg font-bold text-gray-800 group-hover:text-red-600">{item.nm_nomefantasia || "Cliente"}</h3><div className="flex items-center gap-4 mt-1 text-sm text-gray-500"><span className="flex items-center gap-1"><IconPhone /> {item.nr_telefone}</span></div></div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${badgeClass}`}>{statusText}</span>
+                                        <button onClick={(e) => { e.stopPropagation(); abrirModalImpressao(item); }} className="p-2 text-gray-500 border rounded-lg hover:bg-gray-100"><IconPrinter /></button>
+                                        {status == 1 && (<div className="flex gap-2 pl-2 border-l"><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 2)} className="p-2 bg-green-100 text-green-600 rounded-full hover:scale-110"><IconCheck /></button><button onClick={(e) => handleStatusChange(e, item.id_ordemservicos, 3)} className="p-2 bg-red-100 text-red-600 rounded-full hover:scale-110"><IconX /></button></div>)}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : ( buscaRealizada && !loading && <div className="text-center py-12 bg-white rounded-2xl border border-dashed"><h3 className="text-gray-600">Nenhum pedido encontrado</h3></div> )}
+                </div>
+            </div>
+        </main>
+      </div>
+
+      {/* --- ÁREA DE IMPRESSÃO (O ÚNICO LUGAR VISÍVEL NA IMPRESSÃO) --- */}
+      {/* A classe 'hidden' do tailwind esconde na tela.
+          A classe 'print-only' força display:block na impressão (veja o estilo lá em cima).
+      */}
+      <div className="print-only hidden">
+          <CupomEncomenda dados={dadosParaImpressao || {}} />
+      </div>
+
     </div>
   );
 }

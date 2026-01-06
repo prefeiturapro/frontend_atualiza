@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Dicionário para "traduzir" os nomes do banco para o papel
+// --- DADOS FIXOS (Trazendo de volta para não dar tela branca) ---
 const labels = {
     // TORTAS
     ds_decoracao: "DECORAÇÃO", ds_recheio: "RECHEIO", vl_tamanho: "TAMANHO (KG)",
@@ -43,7 +43,6 @@ const labels = {
     vl_pizza: "PIZZA"
 };
 
-// Definição dos grupos e quais campos pertencem a cada um
 const grupos = [
     {
         titulo: "TORTAS",
@@ -73,35 +72,32 @@ const grupos = [
 ];
 
 export const CupomEncomenda = ({ dados }) => {
-    // Renderiza vazio se não tiver dados, para manter o componente vivo
-    if (!dados || Object.keys(dados).length === 0) {
-        return <div style={{ width: '80mm', height: '100px' }}></div>;
-    }
+    // Se não tiver dados, não renderiza nada (mas não quebra)
+    if (!dados || Object.keys(dados).length === 0) return null;
 
-    // Função que verifica se um grupo tem pelo menos 1 item preenchido
     const temItemNoGrupo = (grupo) => {
-        // Verifica campos normais
         const temCampo = grupo.campos.some(key => {
             const val = dados[key];
             if (!val || val === 'N' || val === '0' || val === 0) return false;
             if (!isNaN(parseFloat(val)) && parseFloat(val) === 0) return false;
             return true;
         });
-        // Verifica observação
         const temObs = dados[grupo.obs] && dados[grupo.obs].trim().length > 0;
         return temCampo || temObs;
     };
 
     return (
-        <div className="bg-white text-black font-mono text-xs p-2" style={{ width: '80mm' }}>
-            
-            {/* --- CABEÇALHO --- */}
+        <div className="bg-white text-black font-mono text-xs p-2" style={{ width: '80mm', margin: '0 auto' }}>
+            {/* Estilo embutido para garantir impressão correta */}
+            <style type="text/css" media="print">
+                {`@page { size: 80mm auto; margin: 0; } body { margin: 0; }`}
+            </style>
+
             <div className="text-center mb-4 border-b-2 border-dashed border-black pb-2">
                 <h1 className="text-xl font-black uppercase tracking-wide">CAFÉ FRANCESA</h1>
                 <p className="mt-2 text-[10px]">PEDIDO: #{dados.id_ordemservicos}</p>
             </div>
 
-            {/* --- DADOS GERAIS --- */}
             <div className="mb-4 border-b-2 border-dashed border-black pb-2 space-y-1">
                 <p><span className="font-bold">DATA ENTREGA:</span> {dados.dt_formatada || dados.dt_abertura}</p>
                 <p><span className="font-bold">HORA:</span> {dados.hr_horaenc}</p>
@@ -116,25 +112,20 @@ export const CupomEncomenda = ({ dados }) => {
                 )}
             </div>
 
-            {/* --- ITENS AGRUPADOS --- */}
             {grupos.map((grupo, idx) => {
                 if (!temItemNoGrupo(grupo)) return null;
 
                 return (
                     <div key={idx} className="mb-4 border-b-2 border-dashed border-black pb-2">
                         <h2 className="font-black text-sm mb-2 bg-black text-white text-center uppercase">{grupo.titulo}</h2>
-                        
                         {grupo.campos.map(key => {
                             const val = dados[key];
-                            
-                            // Lógica de Filtro (igual a anterior)
                             if (!val || val === 'N' || val === '0' || val === 0) return null;
                             const num = parseFloat(val);
                             if (!isNaN(num) && num === 0) return null;
 
                             const label = labels[key] || key;
                             
-                            // Se for switch (S/N), mostra apenas o nome do item
                             if ((val === 'S' || val === true) && (key.startsWith('ds_') || key.startsWith('st_'))) {
                                 return (
                                     <div key={key} className="flex justify-between mb-1">
@@ -144,7 +135,6 @@ export const CupomEncomenda = ({ dados }) => {
                                 );
                             }
 
-                            // Se for valor numérico ou texto
                             return (
                                 <div key={key} className="flex justify-between mb-1 border-b border-gray-200 pb-0.5">
                                     <span className="pr-2">{label}:</span>
@@ -152,8 +142,6 @@ export const CupomEncomenda = ({ dados }) => {
                                 </div>
                             );
                         })}
-
-                        {/* Observação do Grupo */}
                         {dados[grupo.obs] && (
                             <div className="mt-2 text-[10px] italic">
                                 <span className="font-bold">OBS:</span> {dados[grupo.obs]}

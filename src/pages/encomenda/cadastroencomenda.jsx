@@ -249,70 +249,72 @@ function CadastroEncomenda() {
     }));
   };
   
+// Função auxiliar para converter arquivo em texto (Base64)
+  const converterParaBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+      });
+  };
+
   const handleSalvar = async (e) => {
     e.preventDefault();
     
-    // --- 1. CRIAR FORM DATA ---
-    const formDataToSend = new FormData();
+    // Copia os dados do formulário para um objeto simples
+    const dadosParaEnviar = { ...formData };
 
-    Object.keys(formData).forEach(key => {
-        if (key !== 'ds_fototorta' && formData[key] !== null && formData[key] !== undefined) {
-            formDataToSend.append(key, formData[key]);
-        }
-    });
-
-    // Ajuste da Data para o TimeZone Local
-    let dataFormatada;
-    if (formData.dt_agendamento) {
-        dataFormatada = formData.dt_agendamento;
-    } else {
+    // Tratamento de Data
+    if (!dadosParaEnviar.dt_agendamento) {
         const hoje = new Date();
-        const ano = hoje.getFullYear();
-        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-        const dia = String(hoje.getDate()).padStart(2, '0');
-        dataFormatada = `${ano}-${mes}-${dia}`;
+        dadosParaEnviar.dt_agendamento = hoje.toISOString().split('T')[0];
     }
-    formDataToSend.set('dt_abertura', dataFormatada); 
+    dadosParaEnviar.dt_abertura = dadosParaEnviar.dt_agendamento;
 
-    // --- 2. ADICIONAR O ARQUIVO REAL ---
-    if (formData.ds_fototorta && formData.ds_fototorta instanceof File) {
-        formDataToSend.append('ds_fototorta', formData.ds_fototorta);
-    } 
+    // --- A MÁGICA: CONVERTER FOTO PARA TEXTO ---
+    if (formData.ds_fototorta instanceof File) {
+        try {
+            const base64 = await converterParaBase64(formData.ds_fototorta);
+            dadosParaEnviar.ds_fototorta_base64 = base64; // Novo campo texto
+        } catch (error) {
+            alert("Erro ao processar a imagem.");
+            return;
+        }
+    }
+    // Remove o objeto File original para não quebrar o JSON
+    delete dadosParaEnviar.ds_fototorta; 
 
-    console.log(">>> ENVIANDO FORM DATA...");
+    console.log(">>> ENVIANDO JSON...", dadosParaEnviar);
 
     const isEdicao = !!formData.id_ordemservicos;
     const url = isEdicao 
         ? `${API_URL}/encomendas/atualizar/${formData.id_ordemservicos}` 
         : `${API_URL}/encomendas`;
     
-    const method = isEdicao ? "PUT" : "POST";
-
     try {
-        // --- AQUI ESTÁ A CORREÇÃO CRUCIAL ---
-        // Não passamos 'headers' aqui. O navegador define o Content-Type 
-        // com o boundary correto automaticamente ao ver o FormData.
         const response = await fetch(url, {
-          method: method,
-          body: formDataToSend,
+          method: "POST",
+          headers: { 
+              "Content-Type": "application/json" // AGORA É 100% JSON
+          },
+          body: JSON.stringify(dadosParaEnviar),
         });
 
         const data = await response.json();
         
         if (response.ok) {
-          
-          alert(`Encomenda ${isEdicao ? 'atualizada' : 'cadastrada'} com sucesso!`);
+          alert(`Sucesso! Pedido ${isEdicao ? 'atualizado' : 'criado'}.`);
           navigate('/encomendas/consulta'); 
-
         } else {
-          alert(`Erro ao salvar: ${data.erro || "Verifique os dados."}`);
+          alert(`Erro ao salvar: ${data.erro || JSON.stringify(data)}`);
         }
     } catch (error) { 
         console.error("Erro:", error); 
-        alert("Erro ao conectar."); 
+        alert("Erro de conexão com o servidor."); 
     }
   };
-
+  
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
       <aside className="w-64 bg-white shadow-xl flex flex-col z-10 border-r border-gray-200">
