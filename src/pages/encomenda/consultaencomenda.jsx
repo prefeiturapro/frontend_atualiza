@@ -71,16 +71,63 @@ function ConsultaEncomenda() {
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  const handleStatusChange = async (e, id, novoStatus) => {
+const handleStatusChange = async (e, id, novoStatus) => {
     e.stopPropagation();
-    if (!window.confirm(`Deseja alterar o status?`)) return;
-    try {
-        const response = await fetch(`${API_URL}/encomendas/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ st_status: novoStatus }) });
-        if (response.ok) setResultados(prev => prev.map(item => item.id_ordemservicos === id ? { ...item, st_status: novoStatus } : item));
-    } catch (error) { alert("Erro de conexão"); }
-  };
+    
+    // --- DIAGNÓSTICO DE ERRO ---
+    console.log("ID recebido:", id);
+    if (!id) {
+        alert("ERRO GRAVE: O ID da encomenda está vazio/undefined. Verifique o banco de dados.");
+        return;
+    }
+    const urlCompleta = `${API_URL}/encomendas/${id}`;
+    console.log("Tentando acessar URL:", urlCompleta);
+    // ---------------------------
+    let msgstatus = "";
+    
+    if (novoStatus === 2) {
+      msgstatus = "Deseja alterar o status para Entregue?"
+    } else {
+       msgstatus = "Deseja cancelar o pedido?"
+    }
+    
 
-  const handleEditar = (enc) => navigate('/cadastro-encomendas', { state: { encomendaParaEditar: enc } });
+    if (!window.confirm(msgstatus)) return;
+
+    try {
+        const response = await fetch(urlCompleta, { 
+            method: 'PUT', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ st_status: novoStatus }) 
+        });
+
+        if (response.ok) {
+            setResultados(prev => prev.map(item => {
+                if (item.id_ordemservicos == id) {
+                    return { ...item, st_status: novoStatus };
+                }
+                return item;
+            }));
+        } else {
+            // Se der 404, ele vai cair aqui
+            console.error("Erro do Servidor:", response.status, response.statusText);
+            alert(`Erro 404: O servidor diz que o endereço não existe.\n\nVerifique se o seu Back-end tem a rota:\napp.put('/encomendas/:id', ...)\n\nURL Tentada: ${urlCompleta}`);
+        }
+    } catch (error) { 
+        console.error("Erro de rede:", error);
+        alert("Erro de conexão."); 
+    }
+  };
+    
+  const handleEditar = (enc) => {
+   if (enc.st_status == 2 || enc.st_status == 3) {
+       alert("Não é possível editar um pedido que já foi Entregue ou Cancelado.");
+       return; // Para a execução aqui, não navega
+    }
+    
+    navigate('/cadastro-encomendas', { state: { encomendaParaEditar: enc } });
+  }
+
   const handleNovaEncomenda = () => navigate('/cadastro-encomendas');
 
   return (
@@ -160,7 +207,7 @@ function ConsultaEncomenda() {
                         resultados.map((item, index) => {
                             const status = item.st_status;
                             let badgeClass = status == 1 ? "bg-yellow-100 text-yellow-800" : status == 2 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
-                            let statusText = status == 1 ? "🕒 Aguardando" : status == 2 ? "✅ Entregue" : "🚫 Cancelado";
+                            let statusText = status == 1 ? "🕒 Aguardando retirada" : status == 2 ? "✅ Entregue" : "🚫 Cancelado";
                             return (
                                 <div key={item.id_ordemservicos || index} onClick={() => handleEditar(item)} className="p-5 rounded-xl border border-gray-200 hover:shadow-md cursor-pointer bg-white flex justify-between items-center group">
                                     <div className="flex gap-6 items-center">

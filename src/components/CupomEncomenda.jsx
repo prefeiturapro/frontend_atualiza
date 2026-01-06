@@ -153,7 +153,7 @@ export const CupomEncomenda = ({ dados }) => {
 
             <div className="text-center text-[9px] mt-4">
                 <p>Obrigado pela preferência!</p>
-                <p>{new Date().toLocaleString()}</p>
+               
             </div>
         </div>
     );
