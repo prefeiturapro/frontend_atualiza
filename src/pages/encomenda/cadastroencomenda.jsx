@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import CadastroContribuinte from "../contribuinte/cadastrocontribuinte";
-// IMPORTANTE: Removemos useReactToPrint pois usaremos window.print() nativo
 import { CupomEncomenda } from "../../components/CupomEncomenda"; 
 
-// --- ÍCONES SVG (Mantidos) ---
+// --- ÍCONES SVG ---
 const IconCliente = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>;
 const IconCakeMenu = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z"/></svg>;
 const IconPhoneInput = () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>;
@@ -82,12 +81,16 @@ function CadastroEncomenda() {
     vl_cacho: "", vl_pizza: "", ds_obsdiv: ""
   });
 
-  // --- LÓGICA DE IMPRESSÃO NATIVA (A MESMA DA TELA DE CONSULTA) ---
+  // --- LÓGICA DE IMPRESSÃO E NAVEGAÇÃO ---
   const handlePrint = () => {
-      // O truque: pequeno delay para garantir renderização, depois chama a janela do browser
+      // 1. Aguarda renderização (500ms)
       setTimeout(() => {
+          // 2. Abre a janela de impressão (o código PAUSA aqui até fechar a janela)
           window.print();
-      }, 100);
+          
+          // 3. Assim que a janela fecha (imprimiu ou cancelou), navega para a consulta
+          navigate('/encomendas/consulta');
+      }, 500);
   };
   
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -280,7 +283,7 @@ function CadastroEncomenda() {
 
     const isEdicao = !!formData.id_ordemservicos;
     const url = isEdicao 
-        ? `${API_URL}/encomendas/${formData.id_ordemservicos}` // Rota REST corrigida (PUT /:id)
+        ? `${API_URL}/encomendas/${formData.id_ordemservicos}` 
         : `${API_URL}/encomendas`;
     
     // Método deve ser PUT se for edição, POST se for novo
@@ -299,26 +302,16 @@ function CadastroEncomenda() {
         
         if (response.ok) {
           // --- SUCESSO NO SALVAMENTO ---
-          
-          // Se for uma criação nova, atualiza o ID para imprimir corretamente o número do pedido
           if (!isEdicao && data.id) {
               setFormData(prev => ({ ...prev, id_ordemservicos: data.id }));
           }
-
-          const mensagem = `Sucesso! Pedido ${isEdicao ? 'atualizado' : 'criado'}. Deseja imprimir o cupom agora?`;
-          
           if(data.id) {
              setFormData(prev => ({ ...prev, id_ordemservicos: data.id }));
            }
               
-           // Chama a impressão
+           // Chama a impressão e DEPOIS navega
            handlePrint();
-              
-              // Depois de um tempo (para dar tempo de imprimir), volta para a tela de consulta
-              // Não queremos navegar imediatamente senão a janela de impressão fecha
-              // O usuário pode clicar em "Voltar" depois ou navegamos após o print
-           navigate('/encomendas/consulta'); 
-     
+      
         } else {
           alert(`Erro ao salvar: ${data.erro || JSON.stringify(data)}`);
         }
@@ -329,34 +322,40 @@ function CadastroEncomenda() {
   };
   
   return (
-    // DIV principal agora
+    // DIV principal
     <div>
-      {/* --- ESTILOS DE IMPRESSÃO (O SEGREDO) --- */}
+      {/* --- ESTILOS DE IMPRESSÃO --- */}
       <style>
         {`
+          /* NA TELA NORMAL: Esconde a área de impressão */
+          @media screen {
+             .print-only {
+                display: none;
+             }
+          }
+
+          /* NA IMPRESSORA: Esconde o site e mostra o cupom */
           @media print {
-            /* Esconde tudo o que tem a classe 'no-print' */
             .no-print { display: none !important; }
             
-            /* Mostra o que tem a classe 'print-only' */
             .print-only { 
                 display: block !important; 
                 position: absolute; 
                 top: 0; 
                 left: 0; 
                 width: 100%; 
+                height: 100%;
                 background: white;
                 z-index: 9999;
             }
             
-            /* Remove margens da página */
             @page { margin: 0; }
             body { margin: 0; padding: 0; background: white; }
           }
         `}
       </style>
 
-      {/* --- CONTEÚDO VISUAL DO SITE (ESCONDIDO NA IMPRESSÃO) --- */}
+      {/* --- CONTEÚDO VISUAL DO SITE (Classe no-print faz sumir na impressora) --- */}
       <div className="flex min-h-screen bg-gray-100 font-sans no-print">
         <aside className="w-64 bg-white shadow-xl flex flex-col z-10 border-r border-gray-200">
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
@@ -598,12 +597,8 @@ function CadastroEncomenda() {
         </main>
       </div>
 
-      {/* --- ÁREA DE IMPRESSÃO (O ÚNICO LUGAR VISÍVEL NA IMPRESSÃO) --- */}
-      {/* A classe 'hidden' do tailwind esconde na tela.
-          A classe 'print-only' força display:block na impressão (veja o estilo lá em cima).
-      */}
-      <div className="print-only hidden">
-          {/* Aqui passamos os dados ATUAIS do formulário para o cupom */}
+      {/* --- ÁREA DE IMPRESSÃO (Sem a classe hidden, controlado pelo CSS do <style> acima) --- */}
+      <div className="print-only">
           <CupomEncomenda dados={formData || {}} />
       </div>
 

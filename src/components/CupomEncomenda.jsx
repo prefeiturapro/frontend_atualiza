@@ -1,6 +1,6 @@
 import React from 'react';
 
-// --- DADOS FIXOS (Trazendo de volta para não dar tela branca) ---
+// --- DADOS FIXOS ---
 const labels = {
     // TORTAS
     ds_decoracao: "DECORAÇÃO", ds_recheio: "RECHEIO", vl_tamanho: "TAMANHO (KG)",
@@ -43,6 +43,13 @@ const labels = {
     vl_pizza: "PIZZA"
 };
 
+// LISTA DE CAMPOS QUE SÃO KG (Para formatar com 2 casas decimais)
+const camposPorKg = [
+    'vl_tamanho', 'vl_bolpamon', 'vl_bolmilho', 'vl_bolchoc', 'vl_bolintban', 'vl_bolmult',
+    'vl_boltoic', 'vl_bolceno', 'vl_bolamend', 'vl_bolbrownie', 'vl_bolprest',
+    'vl_bolbanana', 'vl_bolaveia', 'vl_bollaranj', 'vl_bolcuca'
+];
+
 const grupos = [
     {
         titulo: "TORTAS",
@@ -72,7 +79,6 @@ const grupos = [
 ];
 
 export const CupomEncomenda = ({ dados }) => {
-    // Se não tiver dados, não renderiza nada (mas não quebra)
     if (!dados || Object.keys(dados).length === 0) return null;
 
     const temItemNoGrupo = (grupo) => {
@@ -88,7 +94,6 @@ export const CupomEncomenda = ({ dados }) => {
 
     return (
         <div className="bg-white text-black font-mono text-xs p-2" style={{ width: '80mm', margin: '0 auto' }}>
-            {/* Estilo embutido para garantir impressão correta */}
             <style type="text/css" media="print">
                 {`@page { size: 80mm auto; margin: 0; } body { margin: 0; }`}
             </style>
@@ -104,10 +109,15 @@ export const CupomEncomenda = ({ dados }) => {
                 <p><span className="font-bold">FONE:</span> {dados.nr_telefone}</p>
                 <p className="text-sm mt-2"><span className="font-bold">CLIENTE:</span> {dados.nm_nomefantasia}</p>
                 
+                {/* ALTERAÇÃO 1: Caixa com Borda Grossa em vez de Fundo Preto */}
                 {dados.observacao && (
-                    <div className="mt-2 bg-gray-100 p-1 border border-gray-300">
-                        <span className="font-bold block">OBSERVAÇÃO GERAL:</span>
-                        <span className="uppercase">{dados.observacao}</span>
+                    <div className="mt-3 border-2 border-black p-1">
+                        <div className="text-black text-center font-extrabold uppercase text-xs mb-1 border-b-2 border-black pb-0.5">
+                            OBSERVAÇÃO GERAL
+                        </div>
+                        <span className="uppercase font-black text-sm block leading-tight px-1 mt-1">
+                            {dados.observacao}
+                        </span>
                     </div>
                 )}
             </div>
@@ -117,7 +127,11 @@ export const CupomEncomenda = ({ dados }) => {
 
                 return (
                     <div key={idx} className="mb-4 border-b-2 border-dashed border-black pb-2">
-                        <h2 className="font-black text-sm mb-2 bg-black text-white text-center uppercase">{grupo.titulo}</h2>
+                        {/* ALTERAÇÃO 2: Título da Seção (TORTAS, BOLOS) agora é texto preto entre linhas grossas */}
+                        <h2 className="font-black text-sm mb-2 border-y-2 border-black text-black text-center uppercase py-1">
+                            {grupo.titulo}
+                        </h2>
+                        
                         {grupo.campos.map(key => {
                             const val = dados[key];
                             if (!val || val === 'N' || val === '0' || val === 0) return null;
@@ -135,16 +149,30 @@ export const CupomEncomenda = ({ dados }) => {
                                 );
                             }
 
+                            let valorExibido = val;
+                            if (key.startsWith('vl_')) {
+                                if (camposPorKg.includes(key)) {
+                                    valorExibido = num.toFixed(2);
+                                } else {
+                                    valorExibido = Math.floor(num); 
+                                }
+                            }
+
                             return (
                                 <div key={key} className="flex justify-between mb-1 border-b border-gray-200 pb-0.5">
                                     <span className="pr-2">{label}:</span>
-                                    <span className="font-bold">{val}</span>
+                                    <span className="font-bold">{valorExibido}</span>
                                 </div>
                             );
                         })}
+                        
+                        {/* ALTERAÇÃO 3: OBS dos itens sem fundo preto */}
                         {dados[grupo.obs] && (
-                            <div className="mt-2 text-[10px] italic">
-                                <span className="font-bold">OBS:</span> {dados[grupo.obs]}
+                            <div className="mt-2 border border-black p-1">
+                                <span className="font-extrabold text-black uppercase text-[10px] mr-1">OBS:</span>
+                                <span className="uppercase font-bold text-[11px] leading-tight">
+                                    {dados[grupo.obs]}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -153,7 +181,7 @@ export const CupomEncomenda = ({ dados }) => {
 
             <div className="text-center text-[9px] mt-4">
                 <p>Obrigado pela preferência!</p>
-               
+                <p>{new Date().toLocaleString()}</p>
             </div>
         </div>
     );
