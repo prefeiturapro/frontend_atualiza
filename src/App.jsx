@@ -6,7 +6,7 @@ import Menu from "./pages/menu";
 import Home from "./pages/home"; // Painel de Encomendas
 import CadastroEncomenda from "./pages/encomenda/cadastroencomenda";
 import ConsultaEncomenda from "./pages/encomenda/consultaencomenda";
-
+import ConsultaTortas from "./pages/encomenda/consultatortas";
 
 function App() {
   return (
@@ -29,6 +29,7 @@ function App() {
          {/* 2. ADICIONE ESSA LINHA NOVA. 👇 */}
         <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
     
+        <Route path="/cozinha-camila" element={<ConsultaTortas />} />
     </Routes>
   );
 }
