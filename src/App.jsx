@@ -29,7 +29,7 @@ function App() {
          {/* 2. ADICIONE ESSA LINHA NOVA. 👇 */}
         <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
     
-        <Route path="/cozinha-camila" element={<ConsultaTortas />} />
+        <Route path="/tortas" element={<ConsultaTortas />} />
     </Routes>
   );
 }

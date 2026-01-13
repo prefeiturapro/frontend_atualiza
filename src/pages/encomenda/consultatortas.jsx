@@ -18,36 +18,47 @@ function ConsultaTortas() {
   useEffect(() => {
     carregarEncomendas();
     
-    // Auto-refresh a cada 15 segundos para pegar novos pedidos
+    // Auto-refresh a cada 15 segundos
     const interval = setInterval(carregarEncomendas, 15000);
     return () => clearInterval(interval);
   }, []);
 
   async function carregarEncomendas() {
     try {
-      const res = await fetch(`${API_URL}/encomendas`);
-      if (!res.ok) throw new Error("Erro ao carregar encomendas");
-      const data = await res.json();
+      // --- MUDANÇA AQUI: Agora usamos a mesma rota do ConsultaEncomenda ---
+      // Pegamos a data de hoje para filtrar o dia atual (igual ao painel principal)
+      const dataHoje = new Date().toISOString().split('T')[0];
+      
+      const response = await fetch(`${API_URL}/encomendas/filtrar`, { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          // Enviamos um filtro padrão buscando encomendas de hoje ou todas em aberto
+          // Se quiser ver encomendas antigas, você pode retirar o dt_abertura daqui
+          body: JSON.stringify({ 
+              dt_abertura: dataHoje, 
+              nm_nomefantasia: "", 
+              nr_telefone: "" 
+          }) 
+      });
 
-      // 1. Filtra Camila
-      // 2. Remove o que já foi ENTREGUE ao cliente (st_status = 2) para limpar a tela
-      //    (Opcional: se quiser ver os prontos na tela, remova a condição && enc.st_status != 2)
+      if (!response.ok) throw new Error("Erro ao carregar encomendas");
+      const data = await response.json();
+      // --------------------------------------------------------------------
+
+      // Agora filtramos apenas as da Camila no Frontend
       const minhasEncomendas = data.filter(enc => {
         const idFuncionario = enc.id_empregado || enc.id_usuarios;
-        // Se st_status for 2 (entregue ao cliente), sai da tela da cozinha? 
-        // Vou assumir que sim, para não poluir.
+        // Mostra apenas o que é da Camila E que ainda não foi entregue ao cliente (st_status != 2)
         return idFuncionario === ID_CAMILA && enc.st_status != 2; 
       });
 
-      // Ordena: Primeiro os Pendentes (1), depois os Prontos (2), depois por hora
+      // Ordenação: Pendentes primeiro, depois por hora
       const ordenadas = minhasEncomendas.sort((a, b) => {
-        // Prioridade para o que está em produção (1 vem antes de 2)
         const statusA = a.st_producao || 1;
         const statusB = b.st_producao || 1;
         
         if (statusA !== statusB) return statusA - statusB;
         
-        // Desempate por hora
         const horaA = a.hr_horaenc || a.hora || "";
         const horaB = b.hr_horaenc || b.hora || "";
         return horaA.localeCompare(horaB);
@@ -61,123 +72,166 @@ function ConsultaTortas() {
     }
   }
 
-  // Função para atualizar o status no Backend
+  // Função para atualizar o status (essa continua igual)
   async function alterarStatusProducao(idEncomenda, novoStatus) {
-    // 1. Atualização Otimista (Muda na tela antes de esperar o banco)
+    // Atualização otimista (visual imediato)
     setEncomendas(prev => prev.map(item => 
-      item.id_encomendas === idEncomenda 
+      item.id_encomendas === idEncomenda || item.id_ordemservicos === idEncomenda
         ? { ...item, st_producao: novoStatus } 
         : item
     ));
 
     try {
-      // ATENÇÃO: Você precisará criar essa rota no seu backend Node.js
-      // Exemplo: app.put('/encomendas/:id/producao', ...)
-      await fetch(`${API_URL}/encomendas/${idEncomenda}/producao`, {
+      // Tenta usar o ID correto (alguns endpoints usam id_encomendas, outros id_ordemservicos)
+      const idReal = idEncomenda; 
+      
+      await fetch(`${API_URL}/encomendas/${idReal}/producao`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ st_producao: novoStatus })
       });
       
-      // Recarrega para garantir
+      // Recarrega para garantir a sincronia
       carregarEncomendas();
       
     } catch (error) {
-      alert("Erro ao atualizar status. Verifique a conexão.");
-      carregarEncomendas(); // Desfaz a mudança visual se der erro
+      console.error("Erro ao salvar status", error);
+      // Opcional: Reverter mudança visual em caso de erro
+    }
+  }
+
+  // Auxiliar para formatar data
+  const formatarData = (dataIso) => {
+    if (!dataIso) return "";
+    // Tenta tratar formatos yyyy-mm-dd ou iso string
+    try {
+        const datePart = dataIso.split('T')[0];
+        const [ano, mes, dia] = datePart.split('-');
+        return `${dia}/${mes}/${ano}`;
+    } catch (e) {
+        return dataIso; 
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div className="min-h-screen bg-gray-100 pb-20 font-sans">
       
       {/* HEADER */}
-      <div className="bg-blue-700 p-4 text-white shadow-lg sticky top-0 z-20">
-        <div className="flex justify-between items-center max-w-lg mx-auto">
+      <div className="bg-blue-800 p-4 text-white shadow-lg sticky top-0 z-20 border-b-4 border-blue-900">
+        <div className="flex justify-between items-center max-w-2xl mx-auto">
           <div>
-            <h1 className="text-xl font-bold uppercase tracking-wider">Cozinha: Camila</h1>
-            <p className="text-xs text-blue-200">Controle de Produção</p>
+            <h1 className="text-2xl font-black uppercase tracking-wider flex items-center gap-2">
+                👩‍🍳 Cozinha: Camila
+            </h1>
+            <p className="text-xs text-blue-200 font-medium tracking-wide">PAINEL DE PRODUÇÃO EM TEMPO REAL</p>
           </div>
-          <button onClick={carregarEncomendas} className="p-2 bg-white/10 rounded-full active:bg-white/20">
-            Atualizar
+          <button onClick={carregarEncomendas} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-bold text-sm border border-white/20">
+            ↻ Atualizar
           </button>
         </div>
       </div>
 
       {/* LISTA DE PEDIDOS */}
-      <div className="max-w-lg mx-auto p-4 space-y-4">
+      <div className="max-w-2xl mx-auto p-4 space-y-4">
         
-        {loading && <p className="text-center text-gray-500 mt-10">Carregando...</p>}
+        {loading && (
+            <div className="flex justify-center mt-10">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-800"></div>
+            </div>
+        )}
         
         {!loading && encomendas.length === 0 && (
-           <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300 mt-4 opacity-70">
-             <p className="text-xl font-medium text-gray-400">Tudo limpo!</p>
-             <p className="text-sm text-gray-400">Nenhum pedido pendente.</p>
+           <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300 mt-4 opacity-70">
+             <p className="text-2xl font-bold text-gray-300 mb-2">Tudo limpo!</p>
+             <p className="text-gray-400">Nenhum pedido pendente para hoje.</p>
            </div>
         )}
 
         {encomendas.map((enc) => {
-          // Garante que o status padrão seja 1 se vier nulo
+          // Normaliza IDs e Campos para evitar erros se a API mudar
+          const idItem = enc.id_encomendas || enc.id_ordemservicos;
+          
           const statusProducao = enc.st_producao || ST_PRODUCAO.EM_PRODUCAO;
           const isPronto = statusProducao == ST_PRODUCAO.PRONTO;
           const isCancelado = enc.st_status == 3 || statusProducao == ST_PRODUCAO.CANCELADO;
 
-          // Define as cores do cartão baseado no status
-          let cardClass = "bg-white border-l-blue-600"; // Padrão (Em produção)
-          if (isPronto) cardClass = "bg-green-100 border-l-green-500";
-          if (isCancelado) cardClass = "bg-gray-200 border-l-gray-400 opacity-60";
+          // Cores do Cartão
+          let cardClass = "bg-white border-l-blue-600 shadow-sm"; 
+          if (isPronto) cardClass = "bg-green-50 border-l-green-500 shadow-none opacity-90";
+          if (isCancelado) cardClass = "bg-gray-100 border-l-gray-400 opacity-60 grayscale";
+
+          // NOME DO CLIENTE: Agora vindo direto do campo que sabemos que funciona
+          const nomeCliente = enc.nm_nomefantasia || "Consumidor Final";
+          
+          // DATA E HORA
+          const dataEntrega = enc.dt_formatada || formatarData(enc.dt_abertura);
+          const horaEntrega = enc.hr_horaenc || "??:??";
 
           return (
-            <div key={enc.id_encomendas} className={`relative border-l-8 rounded-r-lg shadow-sm flex flex-col transition-all duration-300 ${cardClass}`}>
+            <div key={idItem} className={`relative border-l-[10px] rounded-lg flex flex-col transition-all duration-300 overflow-hidden ${cardClass}`}>
               
-              {/* Parte Superior: Dados do Pedido */}
-              <div className="p-4 flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-black text-gray-800 tracking-tight">
-                      {enc.hr_horaenc || enc.hora}
+              {/* CONTEÚDO */}
+              <div className="p-5 flex gap-4">
+                
+                {/* Coluna da Hora (Esquerda) */}
+                <div className="flex flex-col items-center justify-start min-w-[80px] border-r border-gray-100 pr-4">
+                    <span className={`text-3xl font-black tracking-tighter ${isPronto ? 'text-green-700' : 'text-gray-800'}`}>
+                        {horaEntrega}
                     </span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase mt-1 text-center leading-tight">
+                        {dataEntrega}
+                    </span>
+                    
                     {isPronto && (
-                      <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase">
-                        PRONTO
-                      </span>
+                        <div className="mt-2 bg-green-100 text-green-700 p-1 rounded-full">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
                     )}
-                  </div>
-                  
-                  <h3 className={`text-xl font-bold leading-tight ${isPronto ? 'text-green-900' : 'text-gray-800'}`}>
-                    {enc.produto_nome || "Produto sem nome"}
-                  </h3>
-                  
-                  <p className="text-sm text-gray-600 mt-1">
-                    Cliente: <b>{enc.nm_nomefantasia}</b>
-                  </p>
+                </div>
+
+                {/* Coluna dos Dados (Direita) */}
+                <div className="flex-1">
+                    <div className="mb-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">CLIENTE / DESTINO</span>
+                        <h3 className={`text-xl font-bold leading-tight uppercase ${isPronto ? 'text-green-900' : 'text-blue-900'}`}>
+                            {nomeCliente}
+                        </h3>
+                    </div>
+
+                    {/* Exibe o Produto de forma discreta */}
+                    <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+                        <div className="flex items-start gap-2">
+                            <span className="mt-1 w-2 h-2 rounded-full bg-blue-400"></span>
+                            <p className="text-sm font-semibold text-gray-600 leading-snug">
+                                {enc.produto_nome || "Produto não especificado"}
+                            </p>
+                        </div>
+                        {/* Se tiver observação, pode por aqui */}
+                        {enc.ds_observacao && (
+                            <p className="text-xs text-red-500 mt-1 ml-4 italic">
+                                ⚠ Obs: {enc.ds_observacao}
+                            </p>
+                        )}
+                    </div>
                 </div>
               </div>
 
-              {/* Parte Inferior: Botão de Ação (Apenas se não estiver cancelado) */}
+              {/* BARRA DE AÇÃO (Rodapé do Card) */}
               {!isCancelado && (
-                <div className="border-t border-black/5">
-                  {!isPronto ? (
-                    // BOTÃO: MARCAR COMO PRONTO
-                    <button
-                      onClick={() => alterarStatusProducao(enc.id_encomendas, ST_PRODUCAO.PRONTO)}
-                      className="w-full py-4 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2 transition-colors rounded-br-lg"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Marcar Pronto
-                    </button>
+                <button
+                  onClick={() => alterarStatusProducao(idItem, isPronto ? ST_PRODUCAO.EM_PRODUCAO : ST_PRODUCAO.PRONTO)}
+                  className={`w-full py-3 font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2
+                    ${isPronto 
+                        ? 'bg-gray-200 text-gray-500 hover:bg-gray-300' 
+                        : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+                    }`}
+                >
+                  {isPronto ? (
+                    <>↩ Voltar para Produção</>
                   ) : (
-                    // BOTÃO: DESFAZER (Voltar para produção)
-                    <button
-                      onClick={() => alterarStatusProducao(enc.id_encomendas, ST_PRODUCAO.EM_PRODUCAO)}
-                      className="w-full py-2 bg-transparent text-gray-400 text-sm hover:text-gray-600 font-medium uppercase"
-                    >
-                      Desfazer (Voltar para produção)
-                    </button>
+                    <>✓ Marcar como Pronto</>
                   )}
-                </div>
+                </button>
               )}
             </div>
           );
