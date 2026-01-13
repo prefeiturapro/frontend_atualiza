@@ -26,7 +26,7 @@ function App() {
       {/* Criei um texto provisório para não dar erro 404 ao clicar */}
       <Route path="/cadastro-encomendas" element={<CadastroEncomenda />} /> 
 
-         {/* 2. ADICIONE ESSA LINHA NOVA 👇 */}
+         {/* 2. ADICIONE ESSA LINHA NOVA. 👇 */}
         <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
     
     </Routes>
