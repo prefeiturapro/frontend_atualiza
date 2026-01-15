@@ -4,87 +4,101 @@ function Home() {
   const [encomendas, setEncomendas] = useState([]);
   const [empregados, setEmpregados] = useState([]);
   const [cores, setCores] = useState({});
-  // Adicionei isso para você ver visualmente que está atualizando
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState(new Date());
 
   const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
   
-  // PALETA DE CORES FIXA
   const CORES_PALETA = [
-    "#2563eb", // Azul 
-    "#dc2626", // Vermelho 
-    "#16a34a", // Verde 
-    "#d97706", // Amarelo 
+    "#2563eb", "#dc2626", "#16a34a", "#d97706", 
+    "#7c3aed", "#db2777", "#059669", "#0891b2"
   ];
 
-  // --- EFEITO: CARREGAR DADOS E ATUALIZAR AUTOMATICAMENTE ---
   useEffect(() => {
     
-    // Função interna para buscar encomendas (com Anti-Cache)
+    // Função para buscar dados (com proteção anti-cache)
     const buscarDados = async () => {
         try {
-            console.log("🔄 Buscando atualizações no servidor...", new Date().toLocaleTimeString());
+            console.log("🔄 Buscando atualizações...", new Date().toLocaleTimeString());
             
-            // O TRUQUE ESTÁ AQUI: ?t=... obriga o navegador a não usar o cache
+            // O timestamp (?t=...) evita que o navegador use o cache antigo
             const url = `${API_URL}/encomendas?t=${new Date().getTime()}`;
             
             const res = await fetch(url, {
-                headers: { 'Cache-Control': 'no-cache' } // Força extra contra cache
+                headers: { 'Cache-Control': 'no-cache' }
             });
 
             if (!res.ok) throw new Error("Erro ao atualizar");
+            
             const data = await res.json();
             
-            setEncomendas(data);
-            setUltimaAtualizacao(new Date()); // Atualiza o relógio na tela
+            // Proteção: Se vier erro, define array vazio para não travar a tela
+            if (Array.isArray(data)) {
+                setEncomendas(data);
+                setUltimaAtualizacao(new Date());
+            } else {
+                setEncomendas([]); 
+            }
+
         } catch (err) {
             console.error("Erro na atualização automática:", err);
         }
     };
 
-    // Função para buscar empregados (só precisa rodar uma vez)
+    // Função para buscar empregados (roda só uma vez)
     const buscarEmpregados = async () => {
         try {
             const res = await fetch(`${API_URL}/empregados`);
-            if (!res.ok) throw new Error("Erro empregados");
-            const data = await res.json();
-            
-            const ordenados = data.sort((a, b) => a.id_empregados - b.id_empregados);
-            setEmpregados(ordenados);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    const ordenados = data.sort((a, b) => a.id_empregados - b.id_empregados);
+                    setEmpregados(ordenados);
 
-            const mapaCores = {};
-            ordenados.forEach((emp, index) => {
-                mapaCores[emp.id_empregados] = CORES_PALETA[index % CORES_PALETA.length];
-            });
-            setCores(mapaCores);
+                    const mapaCores = {};
+                    ordenados.forEach((emp, index) => {
+                        mapaCores[emp.id_empregados] = CORES_PALETA[index % CORES_PALETA.length];
+                    });
+                    setCores(mapaCores);
+                }
+            }
         } catch (err) {
             console.error(err);
         }
     };
 
-    // 1. Executa na hora que abre a tela
+    // 1. Executa imediatamente ao abrir a tela
     buscarEmpregados();
     buscarDados();
 
-    // 2. Cria o timer para rodar a cada 10 segundos (para teste rápido)
-    // Depois você pode mudar 10000 para 30000 (30s)
-    const intervalo = setInterval(buscarDados, 60000);
+    // 2. CONFIGURAÇÃO DE ECONOMIA (POLLING INTELIGENTE)
+    const intervalo = setInterval(() => {
+        const hora = new Date().getHours();
+        
+        // REGRA DE OURO: Só busca se for entre 07:00 da manhã e 23:00 da noite.
+        // Fora desse horário, o sistema não chama o banco, permitindo o "Scale to Zero".
+        if (hora >= 4 && hora < 20) {
+            buscarDados();
+        } else {
+            console.log("💤 Loja fechada (Modo Econômico). O banco pode dormir.");
+        }
 
-    // 3. Limpa o timer se sair da tela
+    }, 240000); // 60000ms = 60 segundos (4 minuto)
+
     return () => clearInterval(intervalo);
 
-  }, []); // Array vazio = roda ao montar o componente
+  }, []);
 
-  // Agrupamento dos dados
+  // --- LÓGICA DE AGRUPAMENTO ---
   const grupos = {};
-  empregados.forEach(emp => {
+  
+  (empregados || []).forEach(emp => {
     grupos[emp.id_empregados] = {
       nome: emp.nm_nomefantasia,
       lista: []
     };
   });
 
-  encomendas.forEach(enc => {
+  (encomendas || []).forEach(enc => {
     const idFuncionario = enc.id_empregado || enc.id_usuarios;
     if (grupos[idFuncionario]) {
       grupos[idFuncionario].lista.push(enc);
@@ -95,9 +109,8 @@ function Home() {
     <div className="p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-bold text-center mb-8 text-gray-800 uppercase">
         Painel de Encomendas
-        {/* Mostra a hora da última busca para você ter certeza que está rodando */}
         <span className="block text-xs font-normal text-gray-400 mt-1 lowercase">
-            atualizado às: {ultimaAtualizacao.toLocaleTimeString()}
+            última atualização: {ultimaAtualizacao.toLocaleTimeString()}
         </span>
       </h1>
 
@@ -105,7 +118,6 @@ function Home() {
         {Object.entries(grupos).map(([id, dadosDoGrupo]) => (
           <div key={id} className="border rounded-lg shadow-md bg-white overflow-hidden flex flex-col">
             
-            {/* CABEÇALHO */}
             <div 
               className="p-3 text-white font-bold text-center text-lg uppercase tracking-wider shadow-sm"
               style={{
@@ -116,7 +128,6 @@ function Home() {
               {dadosDoGrupo.nome} 
             </div>
 
-            {/* TABELA */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
