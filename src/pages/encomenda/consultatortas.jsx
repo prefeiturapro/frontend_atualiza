@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-// 1. IMPORTANTE: Importar o componente novo (Ajuste o caminho se necessário)
-import { DetalhesTortas } from "../../components/DetalhesTortas"; // Exemplo: se estiver na pasta components
+// Import do componente de detalhes
+import { DetalhesTortas } from "../../components/DetalhesTortas"; 
 
 function ConsultaTortas() {
   const [encomendas, setEncomendas] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // 2. NOVO STATE: Controla qual modal está aberto
+  // State para controlar o modal
   const [encomendaSelecionada, setEncomendaSelecionada] = useState(null);
 
   // CONFIGURAÇÕES
@@ -44,7 +44,15 @@ function ConsultaTortas() {
 
       const minhasEncomendas = data.filter(enc => {
         const idFuncionario = enc.id_empregado || enc.id_usuarios;
-        return idFuncionario === ID_CAMILA && enc.st_status != 2; 
+        
+        // --- NOVO FILTRO AQUI ---
+        // Verifica se:
+        // 1. É da Camila
+        // 2. Não foi entregue ao cliente ainda
+        // 3. É REALMENTE UMA TORTA (tem tamanho maior que 0)
+        const ehTorta = enc.vl_tamanho && parseFloat(enc.vl_tamanho) > 0;
+
+        return idFuncionario === ID_CAMILA && enc.st_status != 2 && ehTorta; 
       });
 
       const ordenadas = minhasEncomendas.sort((a, b) => {
@@ -66,9 +74,6 @@ function ConsultaTortas() {
   }
 
   async function alterarStatusProducao(idEncomenda, novoStatus) {
-    // Se clicar no botão de status, NÃO queremos abrir o modal
-    // A lógica de stopPropagation será colocada no botão
-    
     setEncomendas(prev => prev.map(item => 
       item.id_encomendas === idEncomenda || item.id_ordemservicos === idEncomenda
         ? { ...item, st_producao: novoStatus } 
@@ -102,7 +107,7 @@ function ConsultaTortas() {
   return (
     <div className="min-h-screen bg-gray-100 pb-20 font-sans">
       
-      {/* 3. INSERIR O MODAL AQUI (Condicional) */}
+      {/* MODAL DE DETALHES */}
       {encomendaSelecionada && (
         <DetalhesTortas 
             encomenda={encomendaSelecionada} 
@@ -117,7 +122,7 @@ function ConsultaTortas() {
             <h1 className="text-2xl font-black uppercase tracking-wider flex items-center gap-2">
                 👩‍🍳 Cozinha: Camila
             </h1>
-            <p className="text-xs text-blue-200 font-medium tracking-wide">PAINEL DE PRODUÇÃO EM TEMPO REAL</p>
+            <p className="text-xs text-blue-200 font-medium tracking-wide">PAINEL DE TORTAS</p>
           </div>
           <button onClick={carregarEncomendas} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors font-bold text-sm border border-white/20">
             ↻ Atualizar
@@ -136,7 +141,7 @@ function ConsultaTortas() {
         {!loading && encomendas.length === 0 && (
            <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300 mt-4 opacity-70">
              <p className="text-2xl font-bold text-gray-300 mb-2">Tudo limpo!</p>
-             <p className="text-gray-400">Nenhum pedido pendente para hoje.</p>
+             <p className="text-gray-400">Nenhuma torta pendente para hoje.</p>
            </div>
         )}
 
@@ -158,7 +163,6 @@ function ConsultaTortas() {
             <div 
                 key={idItem} 
                 className={`relative border-l-[10px] rounded-lg flex flex-col transition-all duration-300 overflow-hidden ${cardClass}`}
-                // 4. AÇÃO DE CLIQUE NO CARD: Abre o modal
                 onClick={() => !isCancelado && setEncomendaSelecionada(enc)}
             >
               
@@ -190,10 +194,10 @@ function ConsultaTortas() {
                             <div className="flex items-start gap-2">
                                 <span className="mt-1 w-2 h-2 rounded-full bg-blue-400"></span>
                                 <p className="text-sm font-semibold text-gray-600 leading-snug">
-                                    {enc.produto_nome || "Ver Detalhes"}
+                                    {/* Mostra o peso se tiver, senão o nome do produto */}
+                                    {enc.vl_tamanho ? `${enc.vl_tamanho} kg` : enc.produto_nome || "Ver Detalhes"}
                                 </p>
                             </div>
-                            {/* Ícone de "Ver Mais" para indicar clicável */}
                             <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                         </div>
                         {enc.ds_observacao && (
@@ -208,7 +212,6 @@ function ConsultaTortas() {
               {!isCancelado && (
                 <button
                   onClick={(e) => {
-                      // 5. IMPORTANTE: stopPropagation para não abrir o modal ao clicar no botão
                       e.stopPropagation();
                       alterarStatusProducao(idItem, isPronto ? ST_PRODUCAO.EM_PRODUCAO : ST_PRODUCAO.PRONTO);
                   }}
