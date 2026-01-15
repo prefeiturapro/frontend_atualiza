@@ -16,11 +16,23 @@ function Home() {
     "#d97706", // Amarelo Queimado/Ouro (Yellow 600)
   ];
 
-  useEffect(() => {
+   useEffect(() => {
+    // 1. Carrega imediatamente ao abrir a tela
     carregarEncomendas();
     carregarEmpregados();
+
+    // 2. Configura um "timer" para recarregar as encomendas a cada 30 segundos
+    const intervalo = setInterval(() => {
+      console.log("🔄 Atualizando dados do painel...");
+      carregarEncomendas(); 
+      // Não precisa recarregar empregados toda hora, pois eles mudam pouco
+    }, 30000); // 30000 milissegundos = 30 segundos
+
+    // 3. Limpeza: Se o usuário sair dessa tela, o timer para (para não travar o navegador)
+    return () => clearInterval(intervalo);
   }, []);
 
+  
   
   const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
 
