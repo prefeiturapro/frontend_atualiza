@@ -38,7 +38,7 @@ function Home() {
 
   async function carregarEncomendas() {
     try {
-      const res = await fetch(`${API_URL}/encomendas`);
+      const res = await fetch(`${API_URL}/encomendas?t=${new Date().getTime()}`);
       if (!res.ok) throw new Error("Erro ao carregar encomendas");
       const data = await res.json();
       setEncomendas(data);
