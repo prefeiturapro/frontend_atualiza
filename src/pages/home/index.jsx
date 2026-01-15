@@ -1,108 +1,111 @@
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 function Home() {
   const [encomendas, setEncomendas] = useState([]);
   const [empregados, setEmpregados] = useState([]);
   const [cores, setCores] = useState({});
+  // Adicionei isso para você ver visualmente que está atualizando
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(new Date());
 
-  const BASE_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
   
   // PALETA DE CORES FIXA
   const CORES_PALETA = [
-    "#2563eb", // Azul (Blue 600)
-    "#dc2626", // Vermelho (Red 600)
-    "#16a34a", // Verde (Green 600)
-    "#d97706", // Amarelo Queimado/Ouro (Yellow 600)
+    "#2563eb", // Azul 
+    "#dc2626", // Vermelho 
+    "#16a34a", // Verde 
+    "#d97706", // Amarelo 
   ];
 
-   useEffect(() => {
-    // 1. Carrega imediatamente ao abrir a tela
-    carregarEncomendas();
-    carregarEmpregados();
+  // --- EFEITO: CARREGAR DADOS E ATUALIZAR AUTOMATICAMENTE ---
+  useEffect(() => {
+    
+    // Função interna para buscar encomendas (com Anti-Cache)
+    const buscarDados = async () => {
+        try {
+            console.log("🔄 Buscando atualizações no servidor...", new Date().toLocaleTimeString());
+            
+            // O TRUQUE ESTÁ AQUI: ?t=... obriga o navegador a não usar o cache
+            const url = `${API_URL}/encomendas?t=${new Date().getTime()}`;
+            
+            const res = await fetch(url, {
+                headers: { 'Cache-Control': 'no-cache' } // Força extra contra cache
+            });
 
-    // 2. Configura um "timer" para recarregar as encomendas a cada 30 segundos
-    const intervalo = setInterval(() => {
-      console.log("🔄 Atualizando dados do painel...");
-      carregarEncomendas(); 
-      // Não precisa recarregar empregados toda hora, pois eles mudam pouco
-    }, 30000); // 30000 milissegundos = 30 segundos
+            if (!res.ok) throw new Error("Erro ao atualizar");
+            const data = await res.json();
+            
+            setEncomendas(data);
+            setUltimaAtualizacao(new Date()); // Atualiza o relógio na tela
+        } catch (err) {
+            console.error("Erro na atualização automática:", err);
+        }
+    };
 
-    // 3. Limpeza: Se o usuário sair dessa tela, o timer para (para não travar o navegador)
+    // Função para buscar empregados (só precisa rodar uma vez)
+    const buscarEmpregados = async () => {
+        try {
+            const res = await fetch(`${API_URL}/empregados`);
+            if (!res.ok) throw new Error("Erro empregados");
+            const data = await res.json();
+            
+            const ordenados = data.sort((a, b) => a.id_empregados - b.id_empregados);
+            setEmpregados(ordenados);
+
+            const mapaCores = {};
+            ordenados.forEach((emp, index) => {
+                mapaCores[emp.id_empregados] = CORES_PALETA[index % CORES_PALETA.length];
+            });
+            setCores(mapaCores);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // 1. Executa na hora que abre a tela
+    buscarEmpregados();
+    buscarDados();
+
+    // 2. Cria o timer para rodar a cada 10 segundos (para teste rápido)
+    // Depois você pode mudar 10000 para 30000 (30s)
+    const intervalo = setInterval(buscarDados, 10000);
+
+    // 3. Limpa o timer se sair da tela
     return () => clearInterval(intervalo);
-  }, []);
 
-  
-  
-  const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3001";
+  }, []); // Array vazio = roda ao montar o componente
 
-  async function carregarEncomendas() {
-    try {
-      const res = await fetch(`${API_URL}/encomendas?t=${new Date().getTime()}`);
-      if (!res.ok) throw new Error("Erro ao carregar encomendas");
-      const data = await res.json();
-      setEncomendas(data);
-    } catch (err) {
-      console.error(err);
+  // Agrupamento dos dados
+  const grupos = {};
+  empregados.forEach(emp => {
+    grupos[emp.id_empregados] = {
+      nome: emp.nm_nomefantasia,
+      lista: []
+    };
+  });
+
+  encomendas.forEach(enc => {
+    const idFuncionario = enc.id_empregado || enc.id_usuarios;
+    if (grupos[idFuncionario]) {
+      grupos[idFuncionario].lista.push(enc);
     }
-  }
-
-  async function carregarEmpregados() {
-    try {
-      const res = await fetch(`${API_URL}/empregados`);
-      if (!res.ok) throw new Error("Erro ao carregar empregados");
-      const data = await res.json();
-      
-      const empregadosOrdenados = data.sort((a, b) => a.id_empregados - b.id_empregados);
-      setEmpregados(empregadosOrdenados);
-
-      // --- LOGICA DAS CORES FIXAS ---
-      const mapaCores = {};
-      empregadosOrdenados.forEach((emp, index) => {
-        const corEscolhida = CORES_PALETA[index % CORES_PALETA.length];
-        mapaCores[emp.id_empregados] = corEscolhida;
-      });
-      setCores(mapaCores);
-
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao carregar empregados.");
-    }
-  }
-
-  function agruparPorId() {
-    const grupos = {};
-    empregados.forEach(emp => {
-      grupos[emp.id_empregados] = {
-        nome: emp.nm_nomefantasia,
-        lista: []
-      };
-    });
-    encomendas.forEach(enc => {
-      // ATENÇÃO: Confirme se o campo que vem do backend é 'id_empregado' ou 'id_usuarios'
-      // Ajuste aqui conforme o retorno do seu SELECT *
-      const idFuncionario = enc.id_empregado || enc.id_usuarios; 
-      
-      if (grupos[idFuncionario]) {
-        grupos[idFuncionario].lista.push(enc);
-      }
-    });
-    return grupos;
-  }
-
-  const grupos = agruparPorId();
+  });
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-center mb-8 text-gray-800">
-        PAINEL DE ENCOMENDAS - {new Date().toLocaleDateString()}
+      <h1 className="text-2xl font-bold text-center mb-8 text-gray-800 uppercase">
+        Painel de Encomendas
+        {/* Mostra a hora da última busca para você ter certeza que está rodando */}
+        <span className="block text-xs font-normal text-gray-400 mt-1 lowercase">
+            atualizado às: {ultimaAtualizacao.toLocaleTimeString()}
+        </span>
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(grupos).map(([id, dadosDoGrupo]) => (
           <div key={id} className="border rounded-lg shadow-md bg-white overflow-hidden flex flex-col">
             
-            {/* CABEÇALHO COM COR FIXA */}
+            {/* CABEÇALHO */}
             <div 
               className="p-3 text-white font-bold text-center text-lg uppercase tracking-wider shadow-sm"
               style={{
@@ -118,21 +121,13 @@ function Home() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
                   <tr>
-                    <th className="px-4 py-3 border-b">Hora</th>
+                    <th className="px-4 py-3 border-b text-center">Hora</th>
                     <th className="px-4 py-3 border-b">Cliente</th>
                     <th className="px-4 py-3 border-b">Produto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {dadosDoGrupo.lista.map((enc, i) => {
-                    
-
-                    // ADICIONE ESTA LINHA TEMPORARIAMENTE
-                    console.log(`Encomenda: ${enc.nm_nomefantasia}, Status:`, enc.st_status);
-
-                    // --- LÓGICA VISUAL DO STATUS ---
-                    // 1 = Pendente | 2 = Entregue | 3 = Cancelado
-                    const isPendente = enc.st_status == 1;
                     const isEntregue = enc.st_status == 2;
                     const isCancelado = enc.st_status == 3;
 
@@ -153,7 +148,6 @@ function Home() {
                     return (
                       <tr key={i} className={rowClass}>
                         <td className={`px-4 py-3 border-r text-center ${horaStyle}`}>
-                            {/* Usa hr_horaenc se vier do banco, ou hora se vier tratado */}
                             {enc.hr_horaenc || enc.hora}
                         </td>
                         <td className={`px-4 py-3 border-r truncate max-w-[150px] ${textStyle}`} title={enc.nm_nomefantasia || enc.cliente}>

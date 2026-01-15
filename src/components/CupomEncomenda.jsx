@@ -81,6 +81,29 @@ const grupos = [
 export const CupomEncomenda = ({ dados }) => {
     if (!dados || Object.keys(dados).length === 0) return null;
 
+    // --- CORREÇÃO DA DATA: Formata manual ou usa a do banco ---
+    const getDataFormatada = () => {
+        // 1. Cenário: Edição (Vem formatada do Banco)
+        if (dados.dt_formatada) return dados.dt_formatada;
+
+        // 2. Cenário: Cadastro Novo (Vem do formulário como YYYY-MM-DD no campo dt_agendamento)
+        const dataBruta = dados.dt_agendamento || dados.dt_abertura;
+        
+        if (dataBruta) {
+            // Se já tiver barra, retorna direto
+            if (dataBruta.includes('/')) return dataBruta;
+
+            // Se for traço (2026-01-15), converte para 15/01/2026
+            try {
+                const [ano, mes, dia] = dataBruta.split('-');
+                if(dia && mes && ano) return `${dia}/${mes}/${ano}`;
+            } catch (e) {
+                return dataBruta;
+            }
+        }
+        return "---";
+    };
+
     const temItemNoGrupo = (grupo) => {
         const temCampo = grupo.campos.some(key => {
             const val = dados[key];
@@ -100,16 +123,17 @@ export const CupomEncomenda = ({ dados }) => {
 
             <div className="text-center mb-4 border-b-2 border-dashed border-black pb-2">
                 <h1 className="text-xl font-black uppercase tracking-wide">CAFÉ FRANCESA</h1>
-                <p className="mt-2 text-[10px]">PEDIDO: #{dados.id_ordemservicos}</p>
+                <p className="mt-2 text-[10px]">PEDIDO: #{dados.id_ordemservicos || "NOVO"}</p>
             </div>
 
             <div className="mb-4 border-b-2 border-dashed border-black pb-2 space-y-1">
-                <p><span className="font-bold">DATA ENTREGA:</span> {dados.dt_formatada || dados.dt_abertura}</p>
+                {/* AQUI USAMOS A NOVA FUNÇÃO */}
+                <p><span className="font-bold">DATA ENTREGA:</span> {getDataFormatada()}</p>
+                
                 <p><span className="font-bold">HORA:</span> {dados.hr_horaenc}</p>
                 <p><span className="font-bold">FONE:</span> {dados.nr_telefone}</p>
                 <p className="text-sm mt-2"><span className="font-bold">CLIENTE:</span> {dados.nm_nomefantasia}</p>
                 
-                {/* ALTERAÇÃO 1: Caixa com Borda Grossa em vez de Fundo Preto */}
                 {dados.observacao && (
                     <div className="mt-3 border-2 border-black p-1">
                         <div className="text-black text-center font-extrabold uppercase text-xs mb-1 border-b-2 border-black pb-0.5">
@@ -127,7 +151,6 @@ export const CupomEncomenda = ({ dados }) => {
 
                 return (
                     <div key={idx} className="mb-4 border-b-2 border-dashed border-black pb-2">
-                        {/* ALTERAÇÃO 2: Título da Seção (TORTAS, BOLOS) agora é texto preto entre linhas grossas */}
                         <h2 className="font-black text-sm mb-2 border-y-2 border-black text-black text-center uppercase py-1">
                             {grupo.titulo}
                         </h2>
@@ -166,7 +189,6 @@ export const CupomEncomenda = ({ dados }) => {
                             );
                         })}
                         
-                        {/* ALTERAÇÃO 3: OBS dos itens sem fundo preto */}
                         {dados[grupo.obs] && (
                             <div className="mt-2 border border-black p-1">
                                 <span className="font-extrabold text-black uppercase text-[10px] mr-1">OBS:</span>
