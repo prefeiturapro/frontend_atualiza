@@ -1,48 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Para navegação entre rotas
 import logo_cafe_francesa from '../../assets/imagem/logo_cafe_pequena.png';
 
-
 function Menu() {
   const navigate = useNavigate(); // Hook para navegar programaticamente
+  
+  // Estado para controlar se o menu do usuário está aberto ou fechado
+  const [menuAberto, setMenuAberto] = useState(false);
 
   const handleCadastroClick = () => {
-    navigate('/encomendas/consulta'); // Redireciona para a tela de cadastro
+    navigate('/encomendas/consulta'); 
   };
 
   const handlePainelClick = () => {
-    navigate('/painel-encomendas'); // Redireciona para o painel de encomendas
+    navigate('/painel-encomendas'); 
+  };
+
+  // --- FUNÇÃO DE LOGOFF ---
+  const handleLogout = () => {
+    // 1. Remove o "crachá" de segurança
+    localStorage.removeItem('usuario_logado');
+    
+    // 2. Redireciona para a tela de Login
+    navigate('/');
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Navbar Superior */}
-      <nav className="bg-white shadow-md p-4 flex justify-between items-center">
-        {/* Logo (Mantendo a consistência do login) */}
+      <nav className="bg-white shadow-md p-4 flex justify-between items-center z-20 relative">
+        {/* Logo */}
         <div className="flex items-center">
-          <img src={logo_cafe_francesa} />
-          <span className="text-xl font-semibold text-gray-800 hidden md:block">      Café Francesa</span>
+          <img src={logo_cafe_francesa} alt="Logo" className="h-10 w-auto" />
+          <span className="ml-3 text-xl font-semibold text-gray-800 hidden md:block">Café Francesa</span>
         </div>
 
         {/* Ícone de Usuário (Direita) */}
         <div className="flex items-center space-x-4">
-          <div className="relative group">
-            <button className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          
+          {/* Container Relativo para o Dropdown */}
+          <div className="relative">
+            <button 
+                onClick={() => setMenuAberto(!menuAberto)}
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
             </button>
-            {/* Opcional: Dropdown de usuário */}
-            {/*
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
-              <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meu Perfil</a>
-              <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sair</a>
-            </div>
-            */}
+            
+            {/* DROPDOWN DE SAIR (Só aparece se menuAberto for true) */}
+            {menuAberto && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                <div className="px-4 py-2 text-xs text-gray-500 border-b">
+                  Opções
+                </div>
+                <button 
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-800 font-semibold flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                  Sair do Sistema
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
       {/* Conteúdo Principal com os Botões */}
-      <div className="flex-grow flex items-center justify-center p-6">
+      {/* Adicionei um onClick no container principal para fechar o menu se clicar fora (opcional, mas bom pra UX) */}
+      <div 
+        className="flex-grow flex items-center justify-center p-6"
+        onClick={() => setMenuAberto(false)} 
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
           {/* Botão CONSULTA E CADASTRO DE ENCOMENDAS */}
           <button

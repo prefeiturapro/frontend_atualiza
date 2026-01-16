@@ -58,6 +58,7 @@ function Login() {
         // Use 'data' direto, e não 'response.data'
         localStorage.setItem("id_usuario_logado", data.id_usuarios);
         localStorage.setItem("nome_usuario_logado", data.nome); 
+        localStorage.setItem('usuario_logado', JSON.stringify(data));
         // ---------------------
 
          navigate("/menu"); 

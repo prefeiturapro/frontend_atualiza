@@ -1,36 +1,37 @@
 import React from "react";
-import { Route, Routes } from "react-router-dom";
+// CORREÇÃO 1: Adicionei o BrowserRouter na importação
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/login";
 import Menu from "./pages/menu"; 
-import Home from "./pages/home"; // Painel de Encomendas
+import Home from "./pages/home"; 
 import CadastroEncomenda from "./pages/encomenda/cadastroencomenda";
 import ConsultaEncomenda from "./pages/encomenda/consultaencomenda";
 import ConsultaTortas from "./pages/encomenda/consultatortas";
+import RotaPrivada from './components/RotaPrivada';
 
 function App() {
   return (
-    <Routes>
-      {/* 1. A rota raiz agora leva para o Login (segurança) */}
-      <Route path="/" element={<Login />} />
-      <Route path="/login" element={<Login />} />
+    <BrowserRouter>
+      <Routes>
+        {/* === ÁREA PÚBLICA === */}
+        {/* O Login fica FORA da RotaPrivada, senão ninguém consegue entrar */}
+        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
 
-      {/* 2. A tela intermediária de Menu */}
-      <Route path="/menu" element={<Menu />} />
-
-      {/* 3. O botão "Painel de Encomendas" do menu vai levar para cá */}
-      {/* Reutilizamos o componente Home, que já é o seu painel pronto */}
-      <Route path="/painel-encomendas" element={<Home />} />
-
-      {/* 4. O botão "Cadastro" leva para cá */}
-      {/* Criei um texto provisório para não dar erro 404 ao clicar */}
-      <Route path="/cadastro-encomendas" element={<CadastroEncomenda />} /> 
-
-         {/* 2. ADICIONE ESSA LINHA NOVA. 👇 */}
-        <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
-    
-        <Route path="/tortas" element={<ConsultaTortas />} />
-    </Routes>
+        {/* === ÁREA RESTRITA (RotaPrivada) === */}
+        {/* Só entra aqui quem tiver o localStorage 'usuario_logado' */}
+        <Route element={<RotaPrivada />}>
+          
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/painel-encomendas" element={<Home />} />
+          <Route path="/cadastro-encomendas" element={<CadastroEncomenda />} /> 
+          <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
+          <Route path="/tortas" element={<ConsultaTortas />} />
+          
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
