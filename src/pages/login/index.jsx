@@ -52,20 +52,15 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-         console.log("Login realizado:", data);
+          // Definindo o objeto para salvar
+          const dadosUsuario = {
+              ...data, // pega id, nome, etc que veio da API
+              hora_login: new Date().getTime() // <--- ADICIONE ISSO: Salva o timestamp atual
+          };
 
-        
-        // Use 'data' direto, e não 'response.data'
-        localStorage.setItem("id_usuario_logado", data.id_usuarios);
-        localStorage.setItem("nome_usuario_logado", data.nome); 
-        localStorage.setItem('usuario_logado', JSON.stringify(data));
-        // ---------------------
-
-         navigate("/menu"); 
-       } else {        
-         setErro(data.erro || "Usuário ou senha incorretos.");
+          sessionStorage.setItem('usuario_logado', JSON.stringify(dadosUsuario)); 
+          navigate("/menu"); 
       }
-
     } catch (error) {
        console.error("Erro:", error);
       setErro("Erro ao conectar com o servidor.");

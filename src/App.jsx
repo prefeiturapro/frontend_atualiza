@@ -1,35 +1,36 @@
 import React from "react";
-// CORREÇÃO 1: Adicionei o BrowserRouter na importação
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import Login from "./pages/login";
-import Menu from "./pages/menu"; 
-import Home from "./pages/home"; 
-import CadastroEncomenda from "./pages/encomenda/cadastroencomenda";
-import ConsultaEncomenda from "./pages/encomenda/consultaencomenda";
-import ConsultaTortas from "./pages/encomenda/consultatortas";
-import RotaPrivada from './components/RotaPrivada';
+import LocalizaImovel from "./pages/identificacao/localizaimovel"; 
+import Autorizacao from "./pages/identificacao/autorizacao"; 
+import Validacao from "./pages/validacao/validacao";
+import Atualizacao from "./pages/atualizacao/atualizacao"; 
+import Conclusao from "./pages/conclusao/conclusao";
+
+// IMPORTAÇÃO CORRIGIDA PARA A PASTA ADMIN
+import ValidacaoPrefeitura from "./pages/admin/validacaoprefeitura"; 
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* === ÁREA PÚBLICA === */}
-        {/* O Login fica FORA da RotaPrivada, senão ninguém consegue entrar */}
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
+        {/* Rota inicial */}
+        <Route path="/" element={<LocalizaImovel />} />
+      
+        {/* Rotas do fluxo do contribuinte (Cidadão) */}
+        <Route path="/identificacao" element={<LocalizaImovel />} />
+        <Route path="/autorizacao" element={<Autorizacao />} />
+        <Route path="/validacao" element={<Validacao />} />
+        <Route path="/atualizacao" element={<Atualizacao />} />
+        <Route path="/conclusao" element={<Conclusao />} />
 
-        {/* === ÁREA RESTRITA (RotaPrivada) === */}
-        {/* Só entra aqui quem tiver o localStorage 'usuario_logado' */}
-        <Route element={<RotaPrivada />}>
-          
-          <Route path="/menu" element={<Menu />} />
-          <Route path="/painel-encomendas" element={<Home />} />
-          <Route path="/cadastro-encomendas" element={<CadastroEncomenda />} /> 
-          <Route path="/encomendas/consulta" element={<ConsultaEncomenda />} />
-          <Route path="/tortas" element={<ConsultaTortas />} />
-          
-        </Route>
+        {/* ROTA ADMINISTRATIVA (Prefeitura) */}
+        <Route path="/admin/validacao" element={<ValidacaoPrefeitura />} />
+
+        {/* COMENTADO PARA NÃO DAR ERRO:
+            <Route element={<RotaPrivada />}>
+            </Route> 
+        */}
       </Routes>
     </BrowserRouter>
   );
