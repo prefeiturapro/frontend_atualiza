@@ -9,6 +9,7 @@ import Conclusao from "./pages/conclusao/conclusao";
 
 // IMPORTAÇÃO CORRIGIDA PARA A PASTA ADMIN
 import ValidacaoPrefeitura from "./pages/admin/validacaoprefeitura"; 
+import DadosGerais from "./pages/admin/dadosgerais";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
 
         {/* ROTA ADMINISTRATIVA (Prefeitura) */}
         <Route path="/admin/validacao" element={<ValidacaoPrefeitura />} />
+        <Route path="/admin/dadosgerais" element={<DadosGerais />} />.
 
         {/* COMENTADO PARA NÃO DAR ERRO:
             <Route element={<RotaPrivada />}>
