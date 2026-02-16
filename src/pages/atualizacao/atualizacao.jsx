@@ -47,11 +47,15 @@ const Atualizacao = () => {
     const [enviandoEmailOtp, setEnviandoEmailOtp] = useState(false);
 
     const [dadosOriginaisOCR, setDadosOriginaisOCR] = useState({
-        nm_rua_extr: "", 
+    nm_rua_extr: "", 
         ds_numero_extr: "",
         nr_cep_extr: "",
         ds_bairro_extr: "",
-        ds_cidade_extr: ""
+        ds_cidade_extr: "",
+        // NOVOS CAMPOS EXTRATOS
+        ds_loteamento_extr: "",
+        ds_edificio_extr: "",
+        ds_complemento_extr: ""
     });
 
     const [dadosExtraidos, setDadosExtraidos] = useState({
@@ -59,9 +63,13 @@ const Atualizacao = () => {
         nr_cpf_atual: "", nm_rua_atual: "",
         ds_numero_atual: "", ds_bairro_atual: "",
         ds_cidade_atual: "", nr_cep_atual: "",
-        nr_telefone_atual: "",  ds_email_atual: "",
+        nr_telefone_atual: "", ds_email_atual: "",
         ds_obs: "",
-        st_responsavel: "N" 
+        st_responsavel: "N",
+        // NOVOS CAMPOS ATUAIS
+        ds_loteamento_atual: "",
+        ds_edificio_atual: "",
+        ds_complemento_atual: ""
     });
 
     const [configPrefeitura, setConfigPrefeitura] = useState({ NOME: "", logo: "" });
@@ -350,7 +358,11 @@ const Atualizacao = () => {
                     ds_numero_extr: dataOCR.ds_numero_atual || "",
                     nr_cep_extr: dataOCR.nr_cep_atual || "",
                     ds_bairro_extr: dataOCR.ds_bairro_atual || "",
-                    ds_cidade_extr: dataOCR.ds_cidade_atual || ""
+                    ds_cidade_extr: dataOCR.ds_cidade_atual || "",
+                    // NOVOS CAMPOS
+                    ds_loteamento_extr: dataOCR.ds_loteamento_extr || "",
+                    ds_edificio_extr: dataOCR.ds_edificio_extr || "",
+                    ds_complemento_extr: dataOCR.ds_complemento_extr || ""
                 });
 
                 setDadosExtraidos(prev => ({ ...prev, ...dataOCR, ds_obs: "Validado via AtualizaAI Vision" }));
@@ -404,7 +416,10 @@ const Atualizacao = () => {
             nr_cep_extr: dadosOriginaisOCR.nr_cep_extr,
             ds_bairro_extr: dadosOriginaisOCR.ds_bairro_extr,
             ds_cidade_extr: dadosOriginaisOCR.ds_cidade_extr,
-            tp_rua_extr: 'RUA'
+            tp_rua_extr: 'RUA',
+            ds_loteamento_extr: dadosOriginaisOCR.ds_loteamento_extr,
+            ds_edificio_extr: dadosOriginaisOCR.ds_edificio_extr,
+            ds_complemento_extr: dadosOriginaisOCR.ds_complemento_extr            
         };
 
         try {
@@ -564,6 +579,43 @@ const Atualizacao = () => {
                                     <Col md={3}>
                                         <Form.Label className="small fw-bold">Nº</Form.Label>
                                         <Form.Control size="sm" value={dadosExtraidos.ds_numero_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_numero_atual: e.target.value})} readOnly={statusIA !== "concluido" || (ehMunicipioOficial && dadosExtraidos.ds_numero_atual !== "") || aguardandoDeclaracao} />
+                                    </Col>
+
+                                    {/* NOVOS CAMPOS: LOTEAMENTO, EDIFÍCIO E COMPLEMENTO */}
+                                    <Col md={4}>
+                                        <Form.Label className="small fw-bold text-muted">LOTEAMENTO</Form.Label>
+                                        <Form.Control 
+                                            size="sm" 
+                                            placeholder="NOME DO LOTEAMENTO"
+                                            value={dadosExtraidos.ds_loteamento_atual} 
+                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_loteamento_atual: e.target.value.toUpperCase()})}
+                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
+                                            className="bg-white fw-bold"
+                                        />
+                                    </Col>
+
+                                    <Col md={4}>
+                                        <Form.Label className="small fw-bold text-muted">EDIFÍCIO</Form.Label>
+                                        <Form.Control 
+                                            size="sm" 
+                                            placeholder="NOME DO EDIFÍCIO"
+                                            value={dadosExtraidos.ds_edificio_atual} 
+                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_edificio_atual: e.target.value.toUpperCase()})}
+                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
+                                            className="bg-white fw-bold"
+                                        />
+                                    </Col>
+
+                                    <Col md={4}>
+                                        <Form.Label className="small fw-bold text-muted">COMPLEMENTO</Form.Label>
+                                        <Form.Control 
+                                            size="sm" 
+                                            placeholder="APTO / BLOCO / SALA"
+                                            value={dadosExtraidos.ds_complemento_atual} 
+                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_complemento_atual: e.target.value.toUpperCase()})}
+                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
+                                            className="bg-white fw-bold"
+                                        />
                                     </Col>
                                     
                                     <Col md={5}>

@@ -1,84 +1,136 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; 
-import { Button, Form, Container, Row, Col, Alert, Card, Navbar } from 'react-bootstrap';
+import { Button, Form, Container, Row, Col, Alert, Card, Navbar, Spinner } from 'react-bootstrap';
 import logo_prefeiturapro from '../../assets/imagem/logo_prefeiturapro.png';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
 const LocalizaImovel = () => {
-    const [inscricao, setInscricao] = useState("");
-    const [cpf, setCpf] = useState("");
-    const [erro, setErro] = useState("");
-    const [loading, setLoading] = useState(false);
-    
-    const [configPrefeitura, setConfigPrefeitura] = useState({
-        nome: "Portal do Cidadão Municipal",
-        logo: "",
-        email: ""
-    });
-
     const navigate = useNavigate();
 
-    useEffect(() => {
-        let montado = true;
+    const [formData, setFormData] = useState({
+        ds_inscricao: "",
+        nr_cpf_resp: "",
+        cd_reduzido: "",
+        cd_responsavel: "",
+        nm_responsavel: ""
+    });
 
-        const ultimaInscricao = localStorage.getItem("ultima_inscricao");
-        const ultimoCpf = localStorage.getItem("ultimo_cpf");
-        if (ultimaInscricao) setInscricao(ultimaInscricao);
-        if (ultimoCpf) setCpf(ultimoCpf);
+    const [erro, setErro] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [configPronta, setConfigPronta] = useState(false);
+    const [metodosLogin, setMetodosLogin] = useState({}); 
+    const [configPrefeitura, setConfigPrefeitura] = useState({ nome: "", logo: "", email: "" });
 
-        const buscarConfiguracoes = async () => {
+    // Máscara de CPF
+    const formatarCPF = (value) => {
+        const d = value.replace(/\D/g, "");
+        return d
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+            .substring(0, 14);
+    };
+
+    // Função de tratamento de imagem (Buffer para URL)
+    const tratarImagem = (campo) => {
+        if (campo && typeof campo === 'object' && (campo.type === 'Buffer' || Array.isArray(campo.data))) {
             try {
-                const response = await fetch(`${API_URL}/dadosclientes/dados`, {
-                    method: "POST",
+                const arrayBuffer = campo.data ? new Uint8Array(campo.data) : new Uint8Array(campo);
+                const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+                return URL.createObjectURL(blob);
+            } catch (e) {
+                console.error("Erro ao converter brasão:", e);
+                return null;
+            }
+        }
+        return campo;
+    };
+
+    useEffect(() => {
+        const carregarConfiguracoes = async () => {
+            try {
+                // 1. Busca Identidade (master.dados_clientes)
+                const responseCliente = await fetch(`${API_URL}/dadosclientes/dados`, {
+                    method: "POST", 
                     headers: { "Content-Type": "application/json" }
                 });
-                const data = await response.json();
+                const dataCliente = await responseCliente.json();
+
+                // 2. Busca Regras de Login (master.dados_gerais)
+                const responseGerais = await fetch(`${API_URL}/dadosgerais/config`);
+                const dataGerais = await responseGerais.json();
             
-                if (response.ok && data.nm_cliente && montado) {
+                if (responseCliente.ok && responseGerais.ok) {
                     setConfigPrefeitura({
-                        nome: data.nm_cliente,
-                        logo: data.by_brasaoprefeitura,
-                        email: data.ds_email_cliente
+                        nome: dataCliente.nm_cliente,
+                        logo: tratarImagem(dataCliente.by_brasaoprefeitura),
+                        email: dataCliente.ds_email_cliente
                     });
-                    localStorage.setItem("config_prefeitura", JSON.stringify(data));
+
+                    setMetodosLogin({
+                        cpf: dataGerais.st_logincpf === "S",
+                        inscricao: dataGerais.st_logininscricao === "S",
+                        reduzido: dataGerais.st_loginreduzido === "S",
+                        nome: dataGerais.st_loginpornome === "S",
+                        codigoContribuinte: dataGerais.st_login_cod_cont === "S"
+                    });
+
+                    setFormData(prev => ({
+                        ...prev,
+                        ds_inscricao: localStorage.getItem("ultima_inscricao") || "",
+                        nr_cpf_resp: formatarCPF(localStorage.getItem("ultimo_cpf") || "")
+                    }));
+
+                    localStorage.setItem("config_prefeitura", JSON.stringify(dataCliente));
                 }
             } catch (err) {
-                console.error("Erro ao carregar configurações:", err);
+                console.error("Erro ao carregar dados do backend:", err);
+            } finally {
+                setConfigPronta(true);
             }
         };
 
-        buscarConfiguracoes();
-        return () => { montado = false; };
+        carregarConfiguracoes();
     }, []);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (name === "nr_cpf_resp") {
+            setFormData({ ...formData, [name]: formatarCPF(value) });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
+    };
 
     const handleLocalizar = async (e) => {
         e.preventDefault();
         setErro("");
         setLoading(true);
 
+        // CRUCIAL: Filtra para enviar APENAS o que está visível e preenchido
+        const dadosParaEnviar = {};
+        if (metodosLogin.inscricao && formData.ds_inscricao) dadosParaEnviar.ds_inscricao = formData.ds_inscricao;
+        if (metodosLogin.cpf && formData.nr_cpf_resp) dadosParaEnviar.nr_cpf_resp = formData.nr_cpf_resp;
+        if (metodosLogin.reduzido && formData.cd_reduzido) dadosParaEnviar.cd_reduzido = formData.cd_reduzido;
+        if (metodosLogin.codigoContribuinte && formData.cd_responsavel) dadosParaEnviar.cd_responsavel = formData.cd_responsavel;
+        if (metodosLogin.nome && formData.nm_responsavel) dadosParaEnviar.nm_responsavel = formData.nm_responsavel;
+
         try {
             const response = await fetch(`${API_URL}/dadosimoveis/dados`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ inscricao, cpf }),
+                body: JSON.stringify(dadosParaEnviar),
             });
 
             const data = await response.json();
+            if (!response.ok) throw new Error(data.erro || "Cadastro não encontrado.");
 
-            if (!response.ok) {
-                throw new Error(data.erro || "Erro ao localizar imóvel.");
-            }
-
-            localStorage.setItem("ultima_inscricao", inscricao);
-            localStorage.setItem("ultimo_cpf", cpf);
-
-            // Armazena o objeto vindo do banco (Incluso: id_dados_imoveis, etc)
+            localStorage.setItem("ultima_inscricao", formData.ds_inscricao);
+            localStorage.setItem("ultimo_cpf", formData.nr_cpf_resp);
             localStorage.setItem("dados_imovel", JSON.stringify(data));
             
-            // AJUSTE: Agora navega para a tela de Autorização (LGPD) antes da validação
             navigate("/autorizacao"); 
-
         } catch (err) {
             setErro(err.message);
         } finally {
@@ -87,26 +139,25 @@ const LocalizaImovel = () => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-            <Navbar bg="white" className="border-bottom shadow-sm py-3">
+        <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            
+            <Navbar bg="white" className="border-bottom py-3 shadow-sm">
                 <Container>
-                    <Navbar.Brand className="d-flex align-items-center">
-                        <img
-                            src={configPrefeitura.logo || "/brasao_prefeitura.png"} 
-                            alt="Brasão"
-                            height="55"
-                            className="me-3"
-                            onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }}
-                        />
+                    <Navbar.Brand className="d-flex align-items-center w-100">
+                        {configPrefeitura.logo ? (
+                            <img src={configPrefeitura.logo} alt="Brasão" height="55" className="me-3" onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }} />
+                        ) : (
+                            <div style={{ width: '55px', height: '55px' }} className="me-3 bg-light rounded d-flex align-items-center justify-content-center small text-muted">Logo</div>
+                        )}
                         <div>
-                            <div className="fw-bold mb-0 h5 text-dark">{configPrefeitura.nome}</div>
+                            <h4 className="fw-bold mb-0 text-dark">{configPrefeitura.nome || "Portal do Cidadão"}</h4>
                             <div className="text-muted small">{configPrefeitura.email}</div>
                         </div>
                     </Navbar.Brand>
                 </Container>
             </Navbar>
 
-            <Container className="flex-grow-1 mt-5">
+            <Container className="py-5 flex-grow-1">
                 <Row className="justify-content-center text-center mb-4">
                     <Col md={6}>
                         <div className="d-flex justify-content-between align-items-center px-4">
@@ -129,74 +180,66 @@ const LocalizaImovel = () => {
                 </Row>
 
                 <Row className="justify-content-center">
-                    <Col md={5}>
-                        <Card className="shadow-lg border-0 p-4 rounded-4">
-                            <Card.Body>
+                    <Col lg={5} md={7}>
+                        <Card className="border-0 shadow-lg rounded-4 overflow-hidden">
+                            <Card.Body className="p-4 p-md-5">
                                 <h4 className="text-center fw-bold mb-4">Identifique seu Imóvel</h4>
-                                {erro && <Alert variant="danger" className="py-2 small">{erro}</Alert>}
                                 
-                                <Form onSubmit={handleLocalizar}>
-                                    <Form.Group className="mb-3">
-                                        <Form.Control 
-                                            type="text" 
-                                            name="inscricao_imobiliaria" 
-                                            id="inscricao_imobiliaria"
-                                            autoComplete="on" 
-                                            placeholder="Inscrição Imobiliária (Código Reduzido)" 
-                                            className="p-3 bg-light"
-                                            value={inscricao}
-                                            onChange={(e) => setInscricao(e.target.value)}
-                                            required
-                                        />
-                                    </Form.Group>
-                                    <Form.Group className="mb-4">
-                                        <Form.Control 
-                                            type="text" 
-                                            name="cpf_contribuinte" 
-                                            id="cpf_contribuinte"
-                                            autoComplete="username" 
-                                            placeholder="CPF do Proprietário" 
-                                            className="p-3 bg-light"
-                                            value={cpf}
-                                            onChange={(e) => setCpf(e.target.value)}
-                                            required
-                                        />
-                                    </Form.Group>
-                                    <Button variant="primary" type="submit" className="w-100 p-3 fw-bold shadow-sm" disabled={loading}>
-                                        {loading ? "Buscando..." : "Localizar Imóvel"}
-                                    </Button>
-                                </Form>
-                                <div className="text-center text-muted mt-4" style={{ fontSize: '0.75rem' }}>
-                                    <p className="mb-0">Seus dados estão seguros conosco.</p>
-                                    <strong>Lei Geral de Proteção de Dados (LGPD).</strong>
-                                </div>
+                                {!configPronta ? (
+                                    <div className="text-center py-5">
+                                        <Spinner animation="border" variant="primary" />
+                                        <p className="text-muted mt-2 small">Carregando configurações municipais...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {erro && <Alert variant="danger" className="text-center py-2 small">{erro}</Alert>}
+                                        <Form onSubmit={handleLocalizar}>
+                                            {metodosLogin.inscricao && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold small text-muted text-uppercase">Inscrição Imobiliária</Form.Label>
+                                                    <Form.Control type="text" name="ds_inscricao" placeholder="Digite a inscrição" className="p-3 bg-light" value={formData.ds_inscricao} onChange={handleChange} required />
+                                                </Form.Group>
+                                            )}
+                                            {metodosLogin.cpf && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold small text-muted text-uppercase">CPF do Proprietário</Form.Label>
+                                                    <Form.Control type="text" name="nr_cpf_resp" placeholder="000.000.000-00" className="p-3 bg-light" value={formData.nr_cpf_resp} onChange={handleChange} required />
+                                                </Form.Group>
+                                            )}
+                                            {metodosLogin.reduzido && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold small text-muted text-uppercase">Código Reduzido</Form.Label>
+                                                    <Form.Control type="text" name="cd_reduzido" placeholder="Digite o reduzido" className="p-3 bg-light" value={formData.cd_reduzido} onChange={handleChange} required />
+                                                </Form.Group>
+                                            )}
+                                            {metodosLogin.codigoContribuinte && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold small text-muted text-uppercase">Código Contribuinte</Form.Label>
+                                                    <Form.Control type="text" name="cd_responsavel" placeholder="Digite o código" className="p-3 bg-light" value={formData.cd_responsavel} onChange={handleChange} required />
+                                                </Form.Group>
+                                            )}
+                                            {metodosLogin.nome && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold small text-muted text-uppercase">Nome do Proprietário</Form.Label>
+                                                    <Form.Control type="text" name="nm_responsavel" placeholder="Nome completo" className="p-3 bg-light" value={formData.nm_responsavel} onChange={handleChange} required />
+                                                </Form.Group>
+                                            )}
+                                            <Button variant="primary" type="submit" className="w-100 p-3 fw-bold shadow-sm mt-2 text-uppercase" disabled={loading}>
+                                                {loading ? <Spinner size="sm" animation="border" /> : "Localizar Imóvel"}
+                                            </Button>
+                                        </Form>
+                                    </>
+                                )}
                             </Card.Body>
                         </Card>
                     </Col>
                 </Row>
             </Container>
 
-            <footer className="bg-white border-top py-4 mt-5">
+            <footer className="text-center py-4 text-muted bg-white border-top">
                 <Container>
-                    <Row className="justify-content-center">
-                        <Col md={6} className="d-flex flex-column align-items-center text-center">
-                            <div className="d-flex justify-content-center mb-3" style={{ width: '100%' }}>
-                                <img
-                                    src={logo_prefeiturapro}
-                                    alt="Logo Empresa"
-                                    style={{ 
-                                        height: '60px', 
-                                        width: 'auto',
-                                        maxWidth: '120px',
-                                        display: 'block',
-                                        objectFit: 'contain' 
-                                    }}
-                                />
-                            </div>
-                            <div className="fw-bold text-dark h6">PrefeituraPro Soluções Municipais</div>
-                            <div className="text-muted small">© 2026 Todos os direitos reservados.</div>
-                        </Col>
-                    </Row>
+                    <img src={logo_prefeiturapro} alt="Logo Empresa" style={{ height: '55px' }} className="mb-2" />
+                    <div><small>Desenvolvido por <strong>PrefeituraPro Soluções Municipais</strong>. © 2026</small></div>
                 </Container>
             </footer>
         </div>

@@ -4,7 +4,7 @@ import {
     Form, Modal, Spinner, Navbar, Alert 
 } from 'react-bootstrap';
 import { 
-    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle 
+    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle, FaCheckCircle, FaBuilding, FaMapMarkedAlt
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
@@ -20,6 +20,26 @@ const ValidacaoPrefeitura = () => {
     const [processando, setProcessando] = useState(false);
     
     const [configPrefeitura, setConfigPrefeitura] = useState({ NOME: "", logo: "" });
+
+    // --- FUNÇÃO DE SIMILARIDADE DE NOMES ---
+    const calcularSimilaridade = (str1, str2) => {
+        if (!str1 || !str2) return 0;
+        // Normaliza removendo acentos e deixando em caixa alta
+        const s1 = str1.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const s2 = str2.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        
+        if (s1 === s2) return 100;
+
+        const palavrasS1 = s1.split(/\s+/).filter(p => p.length > 1);
+        const palavrasS2 = s2.split(/\s+/).filter(p => p.length > 1);
+        
+        // Conta quantas palavras de um nome estão contidas no outro (ou vice-versa)
+        const matches = palavrasS1.filter(p1 => 
+            palavrasS2.some(p2 => p2.includes(p1) || p1.includes(p2))
+        );
+        
+        return (matches.length / Math.max(palavrasS1.length, palavrasS2.length)) * 100;
+    };
 
     useEffect(() => {
         const storedConfig = localStorage.getItem("config_prefeitura");
@@ -199,7 +219,7 @@ const ValidacaoPrefeitura = () => {
                 </Card>
             </Container>
 
-            <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered>
+            <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered scrollable>
                 <Modal.Header closeButton className="bg-light">
                     <Modal.Title className="h6 fw-bold text-uppercase">Análise Técnica - Protocolo {itemSelecionado?.ds_protocolo}</Modal.Title>
                 </Modal.Header>
@@ -211,7 +231,7 @@ const ValidacaoPrefeitura = () => {
                                     <Row className="text-uppercase small">
                                         <Col md={4}><strong>Solicitante:</strong><br/>{itemSelecionado.nm_contribuinte}</Col>
                                         <Col md={4}><strong>Imóvel:</strong><br/>{itemSelecionado.cd_reduzido_imovel} / {itemSelecionado.ds_inscricao_imovel}</Col>
-                                        <Col md={4} className="text-end"><strong>Solicitado em:</strong><br/><span className="text-primary">{new Date(itemSelecionado.dt_atualizacao).toLocaleDateString('pt-BR')} às {itemSelecionado.hr_atualizacao?.substring(0, 5)}</span></Col>
+                                        <Col md={4} className="text-end"><strong>Solicitado em:</strong><br/><span className="text-primary">{itemSelecionado.dt_atualizacao ? new Date(itemSelecionado.dt_atualizacao).toLocaleDateString('pt-BR') : '---'} às {itemSelecionado.hr_atualizacao?.substring(0, 5)}</span></Col>
                                     </Row>
                                 </Card.Body>
                             </Card>
@@ -258,61 +278,69 @@ const ValidacaoPrefeitura = () => {
                                             <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_extr}</div>
                                             <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_extr}</div>
                                             <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_extr}</div>
-                                            <div className="mb-1"><strong>CIDADE:</strong> {itemSelecionado.ds_cidade_extr}</div>
+                                            <div className="mb-1"><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_extr || '---'}</div>
+                                            <div className="mb-1"><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_extr || '---'}</div>
+                                            <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_extr || '---'}</div>
                                         </div>
                                     </div>
                                 </Col>
 
-                                {/* QUADRO 3: DADOS ENVIADOS COM DESTAQUE EM VERMELHO PARA ALTERAÇÃO */}
+                                {/* QUADRO 3: DADOS ENVIADOS (FINAL) */}
                                 <Col md={4}>
-                                    <div 
-                                        className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${
-                                            dadosOriginais && itemSelecionado.nm_contribuinte !== dadosOriginais.nm_responsavel 
-                                            ? "border-danger border-3" 
-                                            : "border-primary"
-                                        }`} 
-                                        style={{ borderTop: '6px solid #0d6efd' }}
-                                    >
-                                        <h6 className="fw-bold text-primary small border-bottom pb-2 d-flex align-items-center">
-                                            <FaInfoCircle className="me-2"/> DADOS ENVIADOS (FINAL)
-                                        </h6>
-                                        <div style={{fontSize: '11px'}}>
-                                            {/* ALERTA DE SUBSTITUIÇÃO EM VERMELHO */}
-                                            {dadosOriginais && itemSelecionado.nm_contribuinte !== dadosOriginais.nm_responsavel && (
-                                                <div className="alert alert-danger py-1 px-2 mb-2 d-flex align-items-center" style={{fontSize: '10px', fontWeight: 'bold'}}>
-                                                    <FaExclamationTriangle className="me-2"/> 
-                                                    RESPONSÁVEL ALTERADO DETECTADO
-                                                </div>
-                                            )}
+                                    {(() => {
+                                        const score = calcularSimilaridade(itemSelecionado.nm_contribuinte, dadosOriginais?.nm_responsavel);
+                                        const ehDiferente = score < 60; // Só fica vermelho se for muito diferente
+                                        const temVariacao = score >= 60 && score < 100;
 
-                                            <div className={`mb-2 p-2 rounded border ${
-                                                dadosOriginais && itemSelecionado.nm_contribuinte !== dadosOriginais.nm_responsavel 
-                                                ? "border-danger bg-danger bg-opacity-10" 
-                                                : "border-primary text-primary"
-                                            }`}>
-                                                <div className={`fw-bold small ${dadosOriginais && itemSelecionado.nm_contribuinte !== dadosOriginais.nm_responsavel ? "text-danger" : ""}`}>
-                                                    <FaUserAlt className="me-1"/> 
-                                                    {dadosOriginais && itemSelecionado.nm_contribuinte !== dadosOriginais.nm_responsavel 
-                                                        ? "NOVO RESPONSÁVEL SOLICITADO:" 
-                                                        : "RESPONSÁVEL INDICADO:"
-                                                    }
-                                                </div>
-                                                <div className="fw-bold text-dark">{itemSelecionado.nm_contribuinte}</div>
-                                                <div className="mt-1 fw-bold small"><FaIdCard className="me-1"/> CPF INFORMADO:</div>
-                                                <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || 'NÃO INFORMADO'}</div>
-                                            </div>
+                                        return (
+                                            <div 
+                                                className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${
+                                                    ehDiferente ? "border-danger border-3 shadow" : temVariacao ? "border-warning border-3" : "border-primary"
+                                                }`} 
+                                                style={{ borderTop: '6px solid #0d6efd' }}
+                                            >
+                                                <h6 className="fw-bold text-primary small border-bottom pb-2 d-flex align-items-center">
+                                                    <FaInfoCircle className="me-2"/> DADOS ENVIADOS (FINAL)
+                                                </h6>
+                                                
+                                                <div style={{fontSize: '11px'}}>
+                                                    {/* ALERTA DE SCORE */}
+                                                    {ehDiferente && dadosOriginais && (
+                                                        <Alert variant="danger" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold" style={{fontSize: '10px'}}>
+                                                            <FaExclamationTriangle className="me-2"/> RESPONSÁVEL ALTERADO DETECTADO
+                                                        </Alert>
+                                                    )}
+                                                    {temVariacao && (
+                                                        <Alert variant="warning" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold text-dark" style={{fontSize: '10px'}}>
+                                                            <FaCheckCircle className="me-2"/> VARIAÇÃO DE NOME ACEITÁVEL ({score.toFixed(0)}%)
+                                                        </Alert>
+                                                    )}
 
-                                            <div className="mb-1 fw-bold text-primary"><strong>RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
-                                            <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_atual}</div>
-                                            <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_atual}</div>
-                                            <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_atual}</div>
-                                            <div className="mb-1"><strong>CIDADE:</strong> {itemSelecionado.ds_cidade_atual}</div>
-                                            <div className="mt-2 pt-2 border-top">
-                                                <div className="small text-lowercase"><FaEnvelope className="me-1"/>{itemSelecionado.ds_email_atual}</div>
-                                                <div className="small"><FaMobileAlt className="me-1"/>{itemSelecionado.nr_telefone_atual}</div>
+                                                    <div className={`mb-2 p-2 rounded border ${ehDiferente ? "border-danger bg-danger bg-opacity-10" : temVariacao ? "border-warning bg-warning bg-opacity-10" : "border-primary text-primary"}`}>
+                                                        <div className="fw-bold small text-muted">NOME INFORMADO:</div>
+                                                        <div className="fw-bold text-dark">{itemSelecionado.nm_contribuinte}</div>
+                                                        <div className="mt-1 fw-bold small text-muted">CPF INFORMADO:</div>
+                                                        <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || 'NÃO INFORMADO'}</div>
+                                                    </div>
+
+                                                    <div className="mb-1 fw-bold text-primary"><strong>RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
+                                                    <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_atual}</div>
+                                                    <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_atual}</div>
+                                                    <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_atual}</div>
+                                                    
+                                                    {/* CAMPOS ADICIONAIS NO FINAL */}
+                                                    <div className="mb-1"><FaMapMarkedAlt size={10} className="me-1"/><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_atual || '---'}</div>
+                                                    <div className="mb-1"><FaBuilding size={10} className="me-1"/><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_atual || '---'}</div>
+                                                    <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_atual || '---'}</div>
+
+                                                    <div className="mt-2 pt-2 border-top">
+                                                        <div className="small text-lowercase"><FaEnvelope className="me-1"/>{itemSelecionado.ds_email_atual || '---'}</div>
+                                                        <div className="small"><FaMobileAlt className="me-1"/>{itemSelecionado.nr_telefone_atual || '---'}</div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        );
+                                    })()}
                                 </Col>
                             </Row>
                         </>
