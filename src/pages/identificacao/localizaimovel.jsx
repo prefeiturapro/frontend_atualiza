@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; 
 import { Button, Form, Container, Row, Col, Alert, Card, Navbar, Spinner } from 'react-bootstrap';
-import logo_prefeiturapro from '../../assets/imagem/logo_prefeiturapro.png';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
@@ -22,7 +21,7 @@ const LocalizaImovel = () => {
     const [metodosLogin, setMetodosLogin] = useState({}); 
     const [configPrefeitura, setConfigPrefeitura] = useState({ nome: "", logo: "", email: "" });
 
-    // Máscara de CPF
+    // --- MANTENDO TODAS AS SUAS FUNÇÕES ORIGINAIS ---
     const formatarCPF = (value) => {
         const d = value.replace(/\D/g, "");
         return d
@@ -32,7 +31,6 @@ const LocalizaImovel = () => {
             .substring(0, 14);
     };
 
-    // Função de tratamento de imagem (Buffer para URL)
     const tratarImagem = (campo) => {
         if (campo && typeof campo === 'object' && (campo.type === 'Buffer' || Array.isArray(campo.data))) {
             try {
@@ -50,14 +48,12 @@ const LocalizaImovel = () => {
     useEffect(() => {
         const carregarConfiguracoes = async () => {
             try {
-                // 1. Busca Identidade (master.dados_clientes)
                 const responseCliente = await fetch(`${API_URL}/dadosclientes/dados`, {
                     method: "POST", 
                     headers: { "Content-Type": "application/json" }
                 });
                 const dataCliente = await responseCliente.json();
 
-                // 2. Busca Regras de Login (master.dados_gerais)
                 const responseGerais = await fetch(`${API_URL}/dadosgerais/config`);
                 const dataGerais = await responseGerais.json();
             
@@ -108,7 +104,6 @@ const LocalizaImovel = () => {
         setErro("");
         setLoading(true);
 
-        // CRUCIAL: Filtra para enviar APENAS o que está visível e preenchido
         const dadosParaEnviar = {};
         if (metodosLogin.inscricao && formData.ds_inscricao) dadosParaEnviar.ds_inscricao = formData.ds_inscricao;
         if (metodosLogin.cpf && formData.nr_cpf_resp) dadosParaEnviar.nr_cpf_resp = formData.nr_cpf_resp;
@@ -126,6 +121,14 @@ const LocalizaImovel = () => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.erro || "Cadastro não encontrado.");
 
+            const idVerificacao = data.cd_reduzido || data.cd_responsavel;
+            const checkStatusResponse = await fetch(`${API_URL}/dadoscontribuintes/verificar-status/${idVerificacao}`);
+            const statusData = await checkStatusResponse.json();
+
+            if (statusData.jaProcessado) {
+                throw new Error(`Atenção: Este imóvel já possui uma atualização em análise (${statusData.descricaoStatus}). Reenvio bloqueado.`);
+            }
+
             localStorage.setItem("ultima_inscricao", formData.ds_inscricao);
             localStorage.setItem("ultimo_cpf", formData.nr_cpf_resp);
             localStorage.setItem("dados_imovel", JSON.stringify(data));
@@ -141,49 +144,62 @@ const LocalizaImovel = () => {
     return (
         <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
             
-            <Navbar bg="white" className="border-bottom py-3 shadow-sm">
+            {/* --- CABEÇALHO CORRIGIDO PARA CELULAR --- */}
+            <Navbar bg="white" className="border-bottom py-2 shadow-sm">
                 <Container>
-                    <Navbar.Brand className="d-flex align-items-center w-100">
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '12px' }}>
                         {configPrefeitura.logo ? (
-                            <img src={configPrefeitura.logo} alt="Brasão" height="55" className="me-3" onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }} />
+                            <img 
+                                src={configPrefeitura.logo} 
+                                alt="Brasão" 
+                                style={{ height: '45px', width: 'auto', flexShrink: 0 }} 
+                                onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }} 
+                            />
                         ) : (
-                            <div style={{ width: '55px', height: '55px' }} className="me-3 bg-light rounded d-flex align-items-center justify-content-center small text-muted">Logo</div>
+                            <div style={{ width: '45px', height: '45px', flexShrink: 0 }} className="bg-light rounded d-flex align-items-center justify-content-center small text-muted">Logo</div>
                         )}
-                        <div>
-                            <h4 className="fw-bold mb-0 text-dark">{configPrefeitura.nome || "Portal do Cidadão"}</h4>
-                            <div className="text-muted small">{configPrefeitura.email}</div>
+                        <div style={{ flexGrow: 1, minWidth: 0 }}>
+                            <h6 className="fw-bold mb-0 text-dark" style={{ 
+                                fontSize: 'clamp(0.85rem, 4vw, 1.1rem)', 
+                                whiteSpace: 'normal',
+                                lineHeight: '1.2'
+                            }}>
+                                {configPrefeitura.nome || "Portal do Cidadão"}
+                            </h6>
+                            <div className="text-muted" style={{ fontSize: '10px' }}>{configPrefeitura.email}</div>
                         </div>
-                    </Navbar.Brand>
+                    </div>
                 </Container>
             </Navbar>
 
-            <Container className="py-5 flex-grow-1">
-                <Row className="justify-content-center text-center mb-4">
-                    <Col md={6}>
-                        <div className="d-flex justify-content-between align-items-center px-4">
-                            <div className="d-flex flex-column align-items-center">
-                                <div className="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center mb-1" style={{ width: '30px', height: '30px' }}>1</div>
-                                <span className="small fw-bold text-primary">Identificação</span>
+            <Container className="py-4 flex-grow-1">
+                {/* Stepper Responsivo (Igual ao original, mas com g-0 para não vazar tela) */}
+                <Row className="justify-content-center mb-4 g-0">
+                    <Col xs={12} md={8} lg={6}>
+                        <div className="d-flex justify-content-between align-items-center px-2">
+                            <div className="text-center" style={{ flex: 1 }}>
+                                <div className="rounded-circle bg-primary text-white mx-auto d-flex justify-content-center align-items-center mb-1" style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}>1</div>
+                                <span className="fw-bold text-primary" style={{ fontSize: '0.65rem' }}>Identificação</span>
                             </div>
-                            <div className="flex-grow-1 border-top mx-2" style={{ marginTop: '-20px' }}></div>
-                            <div className="d-flex flex-column align-items-center">
-                                <div className="rounded-circle bg-light text-muted d-flex justify-content-center align-items-center mb-1 border" style={{ width: '30px', height: '30px' }}>2</div>
-                                <span className="small text-muted">Autorização</span>
+                            <div className="flex-grow-1 border-top mx-1" style={{ marginBottom: '15px' }}></div>
+                            <div className="text-center" style={{ flex: 1 }}>
+                                <div className="rounded-circle bg-light text-muted border mx-auto d-flex justify-content-center align-items-center mb-1" style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}>2</div>
+                                <span className="small text-muted" style={{ fontSize: '0.65rem' }}>Autorização</span>
                             </div>
-                            <div className="flex-grow-1 border-top mx-2" style={{ marginTop: '-20px' }}></div>
-                            <div className="d-flex flex-column align-items-center">
-                                <div className="rounded-circle bg-light text-muted d-flex justify-content-center align-items-center mb-1 border" style={{ width: '30px', height: '30px' }}>3</div>
-                                <span className="small text-muted">Validação</span>
+                            <div className="flex-grow-1 border-top mx-1" style={{ marginBottom: '15px' }}></div>
+                            <div className="text-center" style={{ flex: 1 }}>
+                                <div className="rounded-circle bg-light text-muted border mx-auto d-flex justify-content-center align-items-center mb-1" style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}>3</div>
+                                <span className="small text-muted" style={{ fontSize: '0.65rem' }}>Validação</span>
                             </div>
                         </div>
                     </Col>
                 </Row>
 
-                <Row className="justify-content-center">
-                    <Col lg={5} md={7}>
-                        <Card className="border-0 shadow-lg rounded-4 overflow-hidden">
+                <Row className="justify-content-center g-0">
+                    <Col xs={12} sm={10} md={8} lg={5}>
+                        <Card className="border-0 shadow-sm rounded-4 mx-1">
                             <Card.Body className="p-4 p-md-5">
-                                <h4 className="text-center fw-bold mb-4">Identifique seu Imóvel</h4>
+                                <h5 className="text-center fw-bold mb-4">Identifique seu Imóvel</h5>
                                 
                                 {!configPronta ? (
                                     <div className="text-center py-5">
@@ -197,31 +213,31 @@ const LocalizaImovel = () => {
                                             {metodosLogin.inscricao && (
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold small text-muted text-uppercase">Inscrição Imobiliária</Form.Label>
-                                                    <Form.Control type="text" name="ds_inscricao" placeholder="Digite a inscrição" className="p-3 bg-light" value={formData.ds_inscricao} onChange={handleChange} required />
+                                                    <Form.Control type="text" name="ds_inscricao" placeholder="Digite a inscrição" className="p-2 p-md-3 bg-light" value={formData.ds_inscricao} onChange={handleChange} required />
                                                 </Form.Group>
                                             )}
                                             {metodosLogin.cpf && (
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold small text-muted text-uppercase">CPF do Proprietário</Form.Label>
-                                                    <Form.Control type="text" name="nr_cpf_resp" placeholder="000.000.000-00" className="p-3 bg-light" value={formData.nr_cpf_resp} onChange={handleChange} required />
+                                                    <Form.Control type="text" name="nr_cpf_resp" placeholder="000.000.000-00" className="p-2 p-md-3 bg-light" value={formData.nr_cpf_resp} onChange={handleChange} required />
                                                 </Form.Group>
                                             )}
                                             {metodosLogin.reduzido && (
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold small text-muted text-uppercase">Código Reduzido</Form.Label>
-                                                    <Form.Control type="text" name="cd_reduzido" placeholder="Digite o reduzido" className="p-3 bg-light" value={formData.cd_reduzido} onChange={handleChange} required />
+                                                    <Form.Control type="text" name="cd_reduzido" placeholder="Digite o reduzido" className="p-2 p-md-3 bg-light" value={formData.cd_reduzido} onChange={handleChange} required />
                                                 </Form.Group>
                                             )}
                                             {metodosLogin.codigoContribuinte && (
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold small text-muted text-uppercase">Código Contribuinte</Form.Label>
-                                                    <Form.Control type="text" name="cd_responsavel" placeholder="Digite o código" className="p-3 bg-light" value={formData.cd_responsavel} onChange={handleChange} required />
+                                                    <Form.Control type="text" name="cd_responsavel" placeholder="Digite o código" className="p-2 p-md-3 bg-light" value={formData.cd_responsavel} onChange={handleChange} required />
                                                 </Form.Group>
                                             )}
                                             {metodosLogin.nome && (
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold small text-muted text-uppercase">Nome do Proprietário</Form.Label>
-                                                    <Form.Control type="text" name="nm_responsavel" placeholder="Nome completo" className="p-3 bg-light" value={formData.nm_responsavel} onChange={handleChange} required />
+                                                    <Form.Control type="text" name="nm_responsavel" placeholder="Nome completo" className="p-2 p-md-3 bg-light" value={formData.nm_responsavel} onChange={handleChange} required />
                                                 </Form.Group>
                                             )}
                                             <Button variant="primary" type="submit" className="w-100 p-3 fw-bold shadow-sm mt-2 text-uppercase" disabled={loading}>
@@ -236,10 +252,9 @@ const LocalizaImovel = () => {
                 </Row>
             </Container>
 
-            <footer className="text-center py-4 text-muted bg-white border-top">
-                <Container>
-                    <img src={logo_prefeiturapro} alt="Logo Empresa" style={{ height: '55px' }} className="mb-2" />
-                    <div><small>Desenvolvido por <strong>PrefeituraPro Soluções Municipais</strong>. © 2026</small></div>
+            <footer className="text-center py-4 text-muted bg-white border-top mt-auto">
+                <Container>                     
+                    <div><small>Desenvolvido por <strong>PrefeituraPro</strong>. © 2026</small></div>
                 </Container>
             </footer>
         </div>

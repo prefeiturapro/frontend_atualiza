@@ -4,14 +4,15 @@ import {
     Form, Modal, Spinner, Navbar, Alert 
 } from 'react-bootstrap';
 import { 
-    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle, FaCheckCircle, FaBuilding, FaMapMarkedAlt
+    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle, FaCheckCircle, FaBuilding, FaMapMarkedAlt, FaUserEdit
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
 const ValidacaoPrefeitura = () => {
     const [pedidos, setPedidos] = useState([]);
-    const [filtro, setFiltro] = useState("TODOS"); 
+    const [filtroEdicao, setFiltroEdicao] = useState("TODOS"); 
+    const [filtroPropriedade, setFiltroPropriedade] = useState("TODOS");
     const [carregando, setCarregando] = useState(true);
     const [itemSelecionado, setItemSelecionado] = useState(null);
     const [dadosOriginais, setDadosOriginais] = useState(null); 
@@ -21,23 +22,17 @@ const ValidacaoPrefeitura = () => {
     
     const [configPrefeitura, setConfigPrefeitura] = useState({ NOME: "", logo: "" });
 
-    // --- FUNÇÃO DE SIMILARIDADE DE NOMES ---
+    // --- FUNÇÃO DE SIMILARIDADE (MANTIDA PARA USO INTERNO SE NECESSÁRIO) ---
     const calcularSimilaridade = (str1, str2) => {
         if (!str1 || !str2) return 0;
-        // Normaliza removendo acentos e deixando em caixa alta
         const s1 = str1.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
         const s2 = str2.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        
         if (s1 === s2) return 100;
-
         const palavrasS1 = s1.split(/\s+/).filter(p => p.length > 1);
         const palavrasS2 = s2.split(/\s+/).filter(p => p.length > 1);
-        
-        // Conta quantas palavras de um nome estão contidas no outro (ou vice-versa)
         const matches = palavrasS1.filter(p1 => 
             palavrasS2.some(p2 => p2.includes(p1) || p1.includes(p2))
         );
-        
         return (matches.length / Math.max(palavrasS1.length, palavrasS2.length)) * 100;
     };
 
@@ -48,15 +43,25 @@ const ValidacaoPrefeitura = () => {
             setConfigPrefeitura({ NOME: config.nm_cliente, logo: config.by_brasaoprefeitura });
         }
         carregarPedidos();
-    }, [filtro]);
+    }, [filtroEdicao, filtroPropriedade]);
 
     const carregarPedidos = async () => {
         setCarregando(true);
         try {
-            const res = await fetch(`${API_URL}/dadoscontribuintes/pendentes?status=${filtro}`);
+            const res = await fetch(`${API_URL}/dadoscontribuintes/pendentes?status=${filtroEdicao}`);
             if (!res.ok) throw new Error("Erro ao buscar dados");
             const data = await res.json();
-            setPedidos(Array.isArray(data) ? data : []);
+            
+            let listaFiltrada = Array.isArray(data) ? data : [];
+
+            // --- FILTRO DE PROPRIEDADE BASEADO NA SUA NOVA REGRA ---
+            if (filtroPropriedade === "MUDANCA") {
+                listaFiltrada = listaFiltrada.filter(p => p.st_responsavel === "S");
+            } else if (filtroPropriedade === "MESMO") {
+                listaFiltrada = listaFiltrada.filter(p => p.st_responsavel === "N");
+            }
+
+            setPedidos(listaFiltrada);
         } catch (e) {
             console.error("Erro ao carregar pedidos:", e);
         } finally {
@@ -146,23 +151,32 @@ const ValidacaoPrefeitura = () => {
             <Container>
                 <Card className="border-0 shadow-sm mb-4 rounded-4">
                     <Card.Body>
-                        <Row className="align-items-center">
-                            <Col md={5}>
+                        <Row className="align-items-center g-3">
+                            <Col lg={3}>
                                 <div className="d-flex align-items-center text-primary">
                                     <FaUniversity className="me-2" size={20}/>
-                                    <h5 className="fw-bold mb-0 text-uppercase">Validação de Cadastros</h5>
+                                    <h5 className="fw-bold mb-0 text-uppercase">Validação</h5>
                                 </div>
-                                <p className="text-muted small mb-0">Pedidos aguardando revisão técnica.</p>
                             </Col>
-                            <Col md={4}>
-                                <Form.Select size="sm" className="rounded-pill border-primary fw-bold" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
-                                    <option value="TODOS">TODOS OS PEDIDOS</option>
+
+                            <Col lg={3}>
+                                <Form.Select size="sm" className="rounded-pill border-primary fw-bold" value={filtroEdicao} onChange={(e) => setFiltroEdicao(e.target.value)}>
+                                    <option value="TODOS">DADOS: TODOS</option>
                                     <option value="N">IA - SEM ALTERAÇÃO</option>
                                     <option value="S">ALTERADOS MANUALMENTE</option>
                                 </Form.Select>
                             </Col>
-                            <Col md={3} className="text-end">
-                                <Button variant="success" size="sm" className="rounded-pill px-3 shadow-sm fw-bold text-uppercase" onClick={handleAtualizarLote} disabled={processando || pedidos.length === 0}>
+
+                            <Col lg={3}>
+                                <Form.Select size="sm" className="rounded-pill border-danger fw-bold" value={filtroPropriedade} onChange={(e) => setFiltroPropriedade(e.target.value)}>
+                                    <option value="TODOS">PROPRIEDADE: TODOS</option>
+                                    <option value="MUDANCA">⚠️ TROCA DE RESPONSÁVEL</option>
+                                    <option value="MESMO">✓ MANUTENÇÃO</option>
+                                </Form.Select>
+                            </Col>
+
+                            <Col lg={3} className="text-end">
+                                <Button variant="success" size="sm" className="rounded-pill px-3 shadow-sm fw-bold text-uppercase w-100" onClick={handleAtualizarLote} disabled={processando || pedidos.length === 0}>
                                     <FaCheckDouble className="me-1"/> Aprovar Lista
                                 </Button>
                             </Col>
@@ -176,8 +190,8 @@ const ValidacaoPrefeitura = () => {
                             <tr>
                                 <th className="py-3 text-center">Reduzido / Inscrição</th>
                                 <th className="py-3">Contribuinte</th>
-                                <th className="py-3">Protocolo</th>
-                                <th className="py-3">Data / Hora</th>
+                                <th className="py-3 text-center">RESPONSÁVEL TRIBUTÁRIO</th>
+                                <th className="py-3">Data / Protocolo</th>
                                 <th className="py-3 text-center">Tipo</th>
                                 <th className="py-3 text-center">Ação</th>
                             </tr>
@@ -186,34 +200,45 @@ const ValidacaoPrefeitura = () => {
                             {carregando ? (
                                 <tr><td colSpan="6" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
                             ) : pedidos.length === 0 ? (
-                                <tr><td colSpan="6" className="text-center py-5 text-muted">Nenhum pedido pendente.</td></tr>
-                            ) : pedidos.map(p => (
-                                <tr key={p.id_dados_contribuintes}>
-                                    <td className="align-middle text-center">
-                                        <div className="fw-bold text-primary">{p.cd_reduzido_imovel}</div>
-                                        <div className="text-muted small" style={{fontSize: '10px'}}>{p.ds_inscricao_imovel}</div>
-                                    </td>
-                                    <td className="align-middle">
-                                        <div className="fw-bold">{p.nm_contribuinte}</div>
-                                        <div className="text-muted small">CÓD: {p.cd_contribuinte}</div>
-                                    </td>
-                                    <td className="align-middle"><Badge bg="light" text="dark" className="border">{p.ds_protocolo}</Badge></td>
-                                    <td className="align-middle">
-                                        <div className="fw-bold">{p.dt_atualizacao ? new Date(p.dt_atualizacao).toLocaleDateString('pt-BR') : '---'}</div>
-                                        <div className="text-muted small"><FaHistory size={10}/> {p.hr_atualizacao?.substring(0, 5)}</div>
-                                    </td>
-                                    <td className="text-center align-middle">
-                                        <Badge bg={p.st_editado_manual === 'S' ? "warning" : "success"} text={p.st_editado_manual === 'S' ? "dark" : "white"}>
-                                            {p.st_editado_manual === 'S' ? "ALTERADO" : "ORIGINAL"}
-                                        </Badge>
-                                    </td>
-                                    <td className="text-center align-middle">
-                                        <Button variant="outline-primary" size="sm" className="rounded-pill" onClick={() => handleAbrirAnalise(p)}>
-                                            <FaEye className="me-1"/> Analisar
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
+                                <tr><td colSpan="6" className="text-center py-5 text-muted">Nenhum pedido pendente para este filtro.</td></tr>
+                            ) : pedidos.map(p => {
+                                // --- REGRA SOLICITADA: MUDANÇA SOMENTE SE st_responsavel === 'S' ---
+                                const ehMudanca = p.st_responsavel === 'S';
+
+                                return (
+                                    <tr key={p.id_dados_contribuintes}>
+                                        <td className="align-middle text-center">
+                                            <div className="fw-bold text-primary">{p.cd_reduzido_imovel}</div>
+                                            <div className="text-muted small" style={{fontSize: '10px'}}>{p.ds_inscricao_imovel}</div>
+                                        </td>
+                                        <td className="align-middle">
+                                            <div className="fw-bold">{p.nm_contribuinte}</div>
+                                            <div className="text-muted small">CÓD: {p.cd_contribuinte}</div>
+                                        </td>
+                                        <td className="text-center align-middle">
+                                            {ehMudanca ? (
+                                                <Badge bg="danger" className="p-2"><FaUserEdit className="me-1"/> MUDANÇA</Badge>
+                                            ) : (
+                                                <Badge bg="light" text="dark" className="border text-muted">MANUTENÇÃO</Badge>
+                                            )}
+                                        </td>
+                                        <td className="align-middle">
+                                            <div className="fw-bold">{p.dt_atualizacao ? new Date(p.dt_atualizacao).toLocaleDateString('pt-BR') : '---'}</div>
+                                            <div className="text-muted small">{p.ds_protocolo}</div>
+                                        </td>
+                                        <td className="text-center align-middle">
+                                            <Badge bg={p.st_editado_manual === 'S' ? "warning" : "success"} text={p.st_editado_manual === 'S' ? "dark" : "white"}>
+                                                {p.st_editado_manual === 'S' ? "ALTERADO" : "ORIGINAL"}
+                                            </Badge>
+                                        </td>
+                                        <td className="text-center align-middle">
+                                            <Button variant="outline-primary" size="sm" className="rounded-pill" onClick={() => handleAbrirAnalise(p)}>
+                                                <FaEye className="me-1"/> Analisar
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </Table>
                 </Card>
@@ -237,7 +262,6 @@ const ValidacaoPrefeitura = () => {
                             </Card>
 
                             <Row className="g-3 text-uppercase">
-                                {/* QUADRO 1: CADASTRO ATUAL NO BANCO */}
                                 <Col md={4}>
                                     <div className="p-3 bg-white rounded-4 border shadow-sm h-100" style={{ borderTop: '6px solid #6c757d' }}>
                                         <h6 className="fw-bold text-secondary small border-bottom pb-2 d-flex align-items-center">
@@ -259,15 +283,14 @@ const ValidacaoPrefeitura = () => {
                                                 <div className="mb-1"><strong>CEP:</strong> {dadosOriginais.nr_cep_resp}</div>
                                                 <div className="mb-1"><strong>CIDADE:</strong> {dadosOriginais.ds_cidade_resp || 'CRICIÚMA'}</div>
                                             </div>
-                                        ) : <Alert variant="warning" className="py-2 small">Não foi possível carregar os dados originais.</Alert>}
+                                        ) : <Alert variant="warning" className="py-2 small">Erro ao carregar dados originais.</Alert>}
                                     </div>
                                 </Col>
 
-                                {/* QUADRO 2: LIDO PELA IA */}
                                 <Col md={4}>
                                     <div className="p-3 bg-white rounded-4 border shadow-sm h-100" style={{ borderTop: '6px solid #198754' }}>
                                         <h6 className="fw-bold text-success small border-bottom pb-2 d-flex align-items-center">
-                                            <FaSyncAlt className="me-2"/> LIDO NO COMPROVANTE (IA)
+                                            <FaSyncAlt className="me-2"/> LIDO NO DOCUMENTO (IA)
                                         </h6>
                                         <div style={{fontSize: '11px'}}>
                                             <div className="mb-2 p-2 bg-light rounded text-success">
@@ -285,52 +308,40 @@ const ValidacaoPrefeitura = () => {
                                     </div>
                                 </Col>
 
-                                {/* QUADRO 3: DADOS ENVIADOS (FINAL) */}
                                 <Col md={4}>
                                     {(() => {
-                                        const score = calcularSimilaridade(itemSelecionado.nm_contribuinte, dadosOriginais?.nm_responsavel);
-                                        const ehDiferente = score < 60; // Só fica vermelho se for muito diferente
-                                        const temVariacao = score >= 60 && score < 100;
+                                        // --- REGRA NO MODAL: MUDANÇA SOMENTE SE st_responsavel === 'S' ---
+                                        const ehDiferente = itemSelecionado.st_responsavel === 'S';
 
                                         return (
                                             <div 
-                                                className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${
-                                                    ehDiferente ? "border-danger border-3 shadow" : temVariacao ? "border-warning border-3" : "border-primary"
-                                                }`} 
+                                                className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${ehDiferente ? "border-danger border-3 shadow" : "border-primary"}`} 
                                                 style={{ borderTop: '6px solid #0d6efd' }}
                                             >
                                                 <h6 className="fw-bold text-primary small border-bottom pb-2 d-flex align-items-center">
-                                                    <FaInfoCircle className="me-2"/> DADOS ENVIADOS (FINAL)
+                                                    <FaInfoCircle className="me-2"/> DADOS PARA ATUALIZAR
                                                 </h6>
                                                 
                                                 <div style={{fontSize: '11px'}}>
-                                                    {/* ALERTA DE SCORE */}
-                                                    {ehDiferente && dadosOriginais && (
-                                                        <Alert variant="danger" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold" style={{fontSize: '10px'}}>
-                                                            <FaExclamationTriangle className="me-2"/> RESPONSÁVEL ALTERADO DETECTADO
-                                                        </Alert>
-                                                    )}
-                                                    {temVariacao && (
-                                                        <Alert variant="warning" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold text-dark" style={{fontSize: '10px'}}>
-                                                            <FaCheckCircle className="me-2"/> VARIAÇÃO DE NOME ACEITÁVEL ({score.toFixed(0)}%)
+                                                    {ehDiferente && (
+                                                        <Alert variant="danger" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold animate__animated animate__pulse animate__infinite" style={{fontSize: '10px'}}>
+                                                            <FaExclamationTriangle className="me-2"/> MUDANÇA DE RESPONSÁVEL
                                                         </Alert>
                                                     )}
 
-                                                    <div className={`mb-2 p-2 rounded border ${ehDiferente ? "border-danger bg-danger bg-opacity-10" : temVariacao ? "border-warning bg-warning bg-opacity-10" : "border-primary text-primary"}`}>
+                                                    <div className={`mb-2 p-2 rounded border ${ehDiferente ? "border-danger bg-danger bg-opacity-10" : "border-primary bg-primary bg-opacity-10"}`}>
                                                         <div className="fw-bold small text-muted">NOME INFORMADO:</div>
                                                         <div className="fw-bold text-dark">{itemSelecionado.nm_contribuinte}</div>
                                                         <div className="mt-1 fw-bold small text-muted">CPF INFORMADO:</div>
-                                                        <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || 'NÃO INFORMADO'}</div>
+                                                        <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || '---'}</div>
                                                     </div>
 
-                                                    <div className="mb-1 fw-bold text-primary"><strong>RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
+                                                    <div className="mb-1"><strong>NOVA RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
                                                     <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_atual}</div>
                                                     <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_atual}</div>
                                                     <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_atual}</div>
-                                                    
-                                                    {/* CAMPOS ADICIONAIS NO FINAL */}
-                                                    <div className="mb-1"><FaMapMarkedAlt size={10} className="me-1"/><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_atual || '---'}</div>
-                                                    <div className="mb-1"><FaBuilding size={10} className="me-1"/><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_atual || '---'}</div>
+                                                    <div className="mb-1"><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_atual || '---'}</div>
+                                                    <div className="mb-1"><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_atual || '---'}</div>
                                                     <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_atual || '---'}</div>
 
                                                     <div className="mt-2 pt-2 border-top">
@@ -350,7 +361,7 @@ const ValidacaoPrefeitura = () => {
                     <Button variant="outline-danger" className="me-auto rounded-pill px-4" onClick={() => handleAcao(itemSelecionado.id_dados_contribuintes, 'CANCELAR')} disabled={processando}>
                         <FaTimes className="me-1"/> Indeferir
                     </Button>
-                    <Button variant="success" className="rounded-pill px-4 shadow-sm" onClick={() => handleAcao(itemSelecionado.id_dados_contribuintes, 'EXECUTAR')} disabled={processando}>
+                    <Button variant="success" className="rounded-pill px-4 shadow-sm fw-bold" onClick={() => handleAcao(itemSelecionado.id_dados_contribuintes, 'EXECUTAR')} disabled={processando}>
                         <FaCheck className="me-1"/> Aprovar e Efetivar
                     </Button>
                 </Modal.Footer>

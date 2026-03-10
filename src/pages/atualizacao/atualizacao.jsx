@@ -9,6 +9,16 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
+// --- FUNÇÃO PARA REMOVER ACENTOS ---
+const normalizarTexto = (texto) => {
+    if (!texto) return "";
+    return texto
+        .toUpperCase()
+        .normalize("NFD")               // Decompõe caracteres acentuados (ex: á -> a + ´)
+        .replace(/[\u0300-\u036f]/g, "") // Remove os acentos (diacríticos)
+        .trim();
+};
+
 const Atualizacao = () => {
     const navigate = useNavigate();
     const [dados, setDados] = useState(null);
@@ -30,6 +40,10 @@ const Atualizacao = () => {
     const [municipioSede, setMunicipioSede] = useState("");
     const [carregandoConfig, setCarregandoConfig] = useState(true);
 
+    // --- NOVOS ESTADOS PARA AS LISTAS DOS COMBOS ---
+    const [listaBairros, setListaBairros] = useState([]);
+    const [listaLogradouros, setListaLogradouros] = useState([]);
+
     const [bairroValido, setBairroValido] = useState(true);
     const [logradouroValido, setLogradouroValido] = useState(true);
     const [stEditadoManual, setStEditadoManual] = useState("N");
@@ -47,12 +61,11 @@ const Atualizacao = () => {
     const [enviandoEmailOtp, setEnviandoEmailOtp] = useState(false);
 
     const [dadosOriginaisOCR, setDadosOriginaisOCR] = useState({
-    nm_rua_extr: "", 
+        nm_rua_extr: "", 
         ds_numero_extr: "",
         nr_cep_extr: "",
         ds_bairro_extr: "",
         ds_cidade_extr: "",
-        // NOVOS CAMPOS EXTRATOS
         ds_loteamento_extr: "",
         ds_edificio_extr: "",
         ds_complemento_extr: ""
@@ -66,7 +79,6 @@ const Atualizacao = () => {
         nr_telefone_atual: "", ds_email_atual: "",
         ds_obs: "",
         st_responsavel: "N",
-        // NOVOS CAMPOS ATUAIS
         ds_loteamento_atual: "",
         ds_edificio_atual: "",
         ds_complemento_atual: ""
@@ -86,6 +98,20 @@ const Atualizacao = () => {
             v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
         }
         return v;
+    };
+
+    // --- BUSCA LISTAS PARA O COMBO (BAIRROS E LOGRADOUROS) ---
+    const carregarListasEndereco = async () => {
+        try {
+            const [resBairros, resLogradouros] = await Promise.all([
+                fetch(`${API_URL}/dadosbairros/listar`),
+                fetch(`${API_URL}/dadoslogradouros/listar`)
+            ]);
+            if (resBairros.ok) setListaBairros(await resBairros.json());
+            if (resLogradouros.ok) setListaLogradouros(await resLogradouros.json());
+        } catch (error) {
+            console.error("Erro ao carregar listas de seleção:", error);
+        }
     };
 
     // --- CONSULTA CPF NO BACKEND ---
@@ -153,7 +179,7 @@ const Atualizacao = () => {
 
     const validarBairroNoBanco = async (nomeBairro) => {
         if (!nomeBairro) return;
-        const nomeLimpo = nomeBairro.trim().toUpperCase();
+        const nomeLimpo = normalizarTexto(nomeBairro);
         try {
             const response = await fetch(`${API_URL}/dadosbairros/validar`, {
                 method: "POST",
@@ -165,13 +191,12 @@ const Atualizacao = () => {
                 setBairroValido(true);
                 setDadosExtraidos(prev => ({ ...prev, ds_bairro_atual: result.nomeOficial }));
             } else { setBairroValido(false); }
-            setStEditadoManual("S");
         } catch (error) { console.error("Erro ao validar bairro:", error); }
     };
 
     const validarLogradouroNoBanco = async (nomeLogradouro) => {
         if (!nomeLogradouro) return;
-        const nomeLimpo = nomeLogradouro.trim().toUpperCase();
+        const nomeLimpo = normalizarTexto(nomeLogradouro);
         try {
             const response = await fetch(`${API_URL}/dadoslogradouros/validar`, {
                 method: "POST",
@@ -183,7 +208,6 @@ const Atualizacao = () => {
                 setLogradouroValido(true);
                 setDadosExtraidos(prev => ({ ...prev, nm_rua_atual: result.nomeOficial }));
             } else { setLogradouroValido(false); }
-            setStEditadoManual("S");
         } catch (error) { console.error("Erro ao validar logradouro:", error); }
     };
 
@@ -292,11 +316,17 @@ const Atualizacao = () => {
         carregarDadosGerais();
     }, [navigate]);
 
+    // Hook para carregar listas quando o município é definido
+    useEffect(() => {
+        if (municipioSede) {
+            carregarListasEndereco();
+        }
+    }, [municipioSede]);
+
     const processarArquivoReal = async (e) => {
         const arquivo = e.target.files[0];
         if (!arquivo) return;
 
-        // --- ROTINA DE LIMPEZA GERAL ---
         setErroTitularidade(null);
         setCpfValidoOficial(null);
         setErroCpfMensagem("");
@@ -310,7 +340,6 @@ const Atualizacao = () => {
         setLogradouroValido(true);
         setBairroValido(true);
         
-        // Limpa os dados extraídos, preservando apenas o código do contribuinte
         setDadosExtraidos({
             cd_contribuinte: dados?.id_dados_imoveis || "",
             nm_contribuinte: "",
@@ -359,14 +388,14 @@ const Atualizacao = () => {
                     nr_cep_extr: dataOCR.nr_cep_atual || "",
                     ds_bairro_extr: dataOCR.ds_bairro_atual || "",
                     ds_cidade_extr: dataOCR.ds_cidade_atual || "",
-                    // NOVOS CAMPOS
                     ds_loteamento_extr: dataOCR.ds_loteamento_extr || "",
                     ds_edificio_extr: dataOCR.ds_edificio_extr || "",
                     ds_complemento_extr: dataOCR.ds_complemento_extr || ""
                 });
 
                 setDadosExtraidos(prev => ({ ...prev, ...dataOCR, ds_obs: "Validado via AtualizaAI Vision" }));
-                
+                setStEditadoManual("N");
+
                 const cidadeLida = (dataOCR.ds_cidade_atual || "").toUpperCase().trim();
                 const cidadeSede = (municipioSede || "").toUpperCase().trim();
 
@@ -408,7 +437,7 @@ const Atualizacao = () => {
             id_dados_imoveis: dados.id_dados_imoveis,
             ds_inscricao_imovel: dados.ds_inscricao,
             cd_reduzido_imovel: dados.cd_reduzido,
-            cd_responsavel: dados.cd_responsavel,
+            cd_contribuinte: dados.cd_responsavel,
             ds_protocolo: nrProtocolo,
             st_editado_manual: stEditadoManual,
             nm_rua_extr: dadosOriginaisOCR.nm_rua_extr,
@@ -430,11 +459,15 @@ const Atualizacao = () => {
             });
             if (response.ok) {
                 localStorage.setItem("protocolo_gerado", nrProtocolo);
+                localStorage.setItem("email_usuario", dadosExtraidos.ds_email_atual.toLowerCase());
+                localStorage.setItem("nome_usuario", dadosExtraidos.nm_contribuinte);
                 navigate("/conclusao"); 
             } else { alert("Erro ao persistir os dados."); }
         } catch (error) { alert("Erro de conexão."); }
         finally { setSalvando(false); }
     };
+
+    // --- BLOCO 02 INICIA AQUI ---
 
     if (!dados || carregandoConfig) {
         return (
@@ -455,7 +488,7 @@ const Atualizacao = () => {
                 </Container>
             </Navbar>
 
-            <Container className="py-4">                
+            <Container className="py-4">                 
                 <Card className="border-0 shadow-sm rounded-4 mb-4" style={{ borderLeft: '8px solid #6c757d' }}>
                     <Card.Body className="bg-light rounded-4 p-4">
                         <div className="mb-3 border-bottom pb-3">
@@ -513,7 +546,6 @@ const Atualizacao = () => {
                                         <Form.Control size="sm" className="bg-white fw-bold" value={dadosExtraidos.nm_contribuinte} readOnly />
                                     </Col>
 
-                                    {/* BLOCO DE RESPONSÁVEL */}
                                     {erroTitularidade && stBloqueioResp === 'S' && (
                                         <Col md={12} className="mb-3">
                                             <div className="p-3 border rounded-3 bg-light border-warning shadow-sm">
@@ -535,7 +567,6 @@ const Atualizacao = () => {
                                         </Col>
                                     )}
 
-                                    {/* CAMPO CPF */}
                                     <Col md={6}>
                                         <Form.Label className="small fw-bold text-primary"><FaIdCard className="me-1"/> CPF DO RESPONSÁVEL</Form.Label>
                                         <InputGroup size="sm">
@@ -555,19 +586,40 @@ const Atualizacao = () => {
 
                                     <Col md={6}></Col>
 
+                                    {/* LOGRADOURO: COMBO SE FOR MUNICÍPIO SEDE, SENÃO CAMPO LIVRE */}
                                     <Col md={9}>
                                         <Form.Label className="small fw-bold">RUA/LOGRADOURO</Form.Label>
                                         <InputGroup size="sm">
-                                            <Form.Control 
-                                                value={dadosExtraidos.nm_rua_atual} 
-                                                onChange={(e) => {
-                                                    setDadosExtraidos({...dadosExtraidos, nm_rua_atual: e.target.value.toUpperCase()});
-                                                    if(logradouroValido) setLogradouroValido(false); 
-                                                }}
-                                                onBlur={(e) => ehMunicipioOficial && validarLogradouroNoBanco(e.target.value)}
-                                                readOnly={statusIA !== "concluido" || aguardandoDeclaracao} 
-                                                className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? (ehMunicipioOficial ? (logradouroValido ? "border-success bg-white" : "border-danger bg-white") : "border-primary bg-white") : "bg-light"}`}
-                                            />
+                                            {ehMunicipioOficial ? (
+                                                <Form.Select
+                                                    size="sm"
+                                                    value={dadosExtraidos.nm_rua_atual}
+                                                    onChange={(e) => {
+                                                        setDadosExtraidos({...dadosExtraidos, nm_rua_atual: e.target.value});
+                                                        setStEditadoManual("S");
+                                                        setLogradouroValido(true);
+                                                    }}
+                                                    disabled={statusIA !== "concluido" || aguardandoDeclaracao}
+                                                    className={`fw-bold ${logradouroValido ? "border-success bg-white" : "border-danger bg-white"}`}
+                                                >
+                                                    <option value="">SELECIONE O LOGRADOURO...</option>
+                                                    {listaLogradouros.map((rua, idx) => (
+                                                        <option key={idx} value={rua.nm_logradouro}>{rua.nm_logradouro}</option>
+                                                    ))}
+                                                </Form.Select>
+                                            ) : (
+                                                <Form.Control 
+                                                    value={dadosExtraidos.nm_rua_atual} 
+                                                    onChange={(e) => {
+                                                        setDadosExtraidos({...dadosExtraidos, nm_rua_atual: e.target.value.toUpperCase()});
+                                                        setStEditadoManual("S");
+                                                        if(logradouroValido) setLogradouroValido(false); 
+                                                    }}
+                                                    onBlur={(e) => ehMunicipioOficial && validarLogradouroNoBanco(e.target.value)}
+                                                    readOnly={statusIA !== "concluido" || aguardandoDeclaracao} 
+                                                    className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? "border-primary bg-white" : "bg-light"}`}
+                                                />
+                                            )}
                                         </InputGroup>
                                         {statusIA === "concluido" && !aguardandoDeclaracao && (
                                             <small className={`fw-bold ${ehMunicipioOficial ? (logradouroValido ? "text-success" : "text-danger") : "text-primary"}`} style={{fontSize: '10px'}}>
@@ -578,17 +630,27 @@ const Atualizacao = () => {
 
                                     <Col md={3}>
                                         <Form.Label className="small fw-bold">Nº</Form.Label>
-                                        <Form.Control size="sm" value={dadosExtraidos.ds_numero_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_numero_atual: e.target.value})} readOnly={statusIA !== "concluido" || (ehMunicipioOficial && dadosExtraidos.ds_numero_atual !== "") || aguardandoDeclaracao} />
+                                        <Form.Control 
+                                            size="sm" 
+                                            value={dadosExtraidos.ds_numero_atual} 
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, ds_numero_atual: e.target.value});
+                                                setStEditadoManual("S");
+                                            }} 
+                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao} 
+                                        />
                                     </Col>
 
-                                    {/* NOVOS CAMPOS: LOTEAMENTO, EDIFÍCIO E COMPLEMENTO */}
                                     <Col md={4}>
                                         <Form.Label className="small fw-bold text-muted">LOTEAMENTO</Form.Label>
                                         <Form.Control 
                                             size="sm" 
                                             placeholder="NOME DO LOTEAMENTO"
                                             value={dadosExtraidos.ds_loteamento_atual} 
-                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_loteamento_atual: e.target.value.toUpperCase()})}
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, ds_loteamento_atual: e.target.value.toUpperCase()});
+                                                setStEditadoManual("S");
+                                            }}
                                             readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
                                             className="bg-white fw-bold"
                                         />
@@ -600,7 +662,10 @@ const Atualizacao = () => {
                                             size="sm" 
                                             placeholder="NOME DO EDIFÍCIO"
                                             value={dadosExtraidos.ds_edificio_atual} 
-                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_edificio_atual: e.target.value.toUpperCase()})}
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, ds_edificio_atual: e.target.value.toUpperCase()});
+                                                setStEditadoManual("S");
+                                            }}
                                             readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
                                             className="bg-white fw-bold"
                                         />
@@ -612,25 +677,49 @@ const Atualizacao = () => {
                                             size="sm" 
                                             placeholder="APTO / BLOCO / SALA"
                                             value={dadosExtraidos.ds_complemento_atual} 
-                                            onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_complemento_atual: e.target.value.toUpperCase()})}
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, ds_complemento_atual: e.target.value.toUpperCase()});
+                                                setStEditadoManual("S");
+                                            }}
                                             readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
                                             className="bg-white fw-bold"
                                         />
                                     </Col>
                                     
+                                    {/* BAIRRO: COMBO SE FOR MUNICÍPIO SEDE, SENÃO CAMPO LIVRE */}
                                     <Col md={5}>
                                         <Form.Label className="small fw-bold">BAIRRO</Form.Label>
                                         <InputGroup size="sm">
-                                            <Form.Control 
-                                                value={dadosExtraidos.ds_bairro_atual} 
-                                                onChange={(e) => {
-                                                    setDadosExtraidos({...dadosExtraidos, ds_bairro_atual: e.target.value.toUpperCase()});
-                                                    if(bairroValido) setBairroValido(false); 
-                                                }}
-                                                onBlur={(e) => ehMunicipioOficial && validarBairroNoBanco(e.target.value)}
-                                                readOnly={statusIA !== "concluido" || (ehMunicipioOficial && bairroValido) || aguardandoDeclaracao}
-                                                className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? (ehMunicipioOficial ? (bairroValido ? "border-success bg-white" : "border-danger bg-white") : "border-primary bg-white") : "bg-light"}`}
-                                            />
+                                            {ehMunicipioOficial ? (
+                                                <Form.Select
+                                                    size="sm"
+                                                    value={dadosExtraidos.ds_bairro_atual}
+                                                    onChange={(e) => {
+                                                        setDadosExtraidos({...dadosExtraidos, ds_bairro_atual: e.target.value});
+                                                        setStEditadoManual("S");
+                                                        setBairroValido(true);
+                                                    }}
+                                                    disabled={statusIA !== "concluido" || aguardandoDeclaracao}
+                                                    className={`fw-bold ${bairroValido ? "border-success bg-white" : "border-danger bg-white"}`}
+                                                >
+                                                    <option value="">SELECIONE O BAIRRO...</option>
+                                                    {listaBairros.map((b, idx) => (
+                                                        <option key={idx} value={b.nm_bairro}>{b.nm_bairro}</option>
+                                                    ))}
+                                                </Form.Select>
+                                            ) : (
+                                                <Form.Control 
+                                                    value={dadosExtraidos.ds_bairro_atual} 
+                                                    onChange={(e) => {
+                                                        setDadosExtraidos({...dadosExtraidos, ds_bairro_atual: e.target.value.toUpperCase()});
+                                                        setStEditadoManual("S");
+                                                        if(bairroValido) setBairroValido(false); 
+                                                    }}
+                                                    onBlur={(e) => ehMunicipioOficial && validarBairroNoBanco(e.target.value)}
+                                                    readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
+                                                    className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? "border-primary bg-white" : "bg-light"}`}
+                                                />
+                                            )}
                                         </InputGroup>
                                         {statusIA === "concluido" && !aguardandoDeclaracao && (
                                             <small className={`fw-bold ${ehMunicipioOficial ? (bairroValido ? "text-success" : "text-danger") : "text-primary"}`} style={{fontSize: '10px'}}>
@@ -639,8 +728,31 @@ const Atualizacao = () => {
                                         )}
                                     </Col>
 
-                                    <Col md={4}><Form.Label className="small fw-bold">CIDADE</Form.Label><Form.Control size="sm" value={dadosExtraidos.ds_cidade_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_cidade_atual: e.target.value.toUpperCase()})} readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} /></Col>
-                                    <Col md={3}><Form.Label className="small fw-bold">CEP</Form.Label><Form.Control size="sm" value={dadosExtraidos.nr_cep_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, nr_cep_atual: e.target.value})} readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} /></Col>
+                                    <Col md={4}>
+                                        <Form.Label className="small fw-bold">CIDADE</Form.Label>
+                                        <Form.Control 
+                                            size="sm" 
+                                            value={dadosExtraidos.ds_cidade_atual} 
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, ds_cidade_atual: e.target.value.toUpperCase()});
+                                                setStEditadoManual("S");
+                                            }} 
+                                            readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} 
+                                        />
+                                    </Col>
+
+                                    <Col md={3}>
+                                        <Form.Label className="small fw-bold">CEP</Form.Label>
+                                        <Form.Control 
+                                            size="sm" 
+                                            value={dadosExtraidos.nr_cep_atual} 
+                                            onChange={(e) => {
+                                                setDadosExtraidos({...dadosExtraidos, nr_cep_atual: e.target.value});
+                                                setStEditadoManual("S");
+                                            }} 
+                                            readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} 
+                                        />
+                                    </Col>
                                     
                                     <Col md={12} className="mt-3">
                                         <Form.Label className="small fw-bold text-primary"><FaEnvelope className="me-1"/> E-MAIL</Form.Label>

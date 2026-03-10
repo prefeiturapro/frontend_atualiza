@@ -18,40 +18,63 @@ const Autorizacao = () => {
 
     const handleProsseguir = () => {
         if (aceitou) {
-            navigate("/validacao"); // Segue o fluxo para a validação por SMS
+            navigate("/validacao");
         }
     };
 
     return (
-        <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-            <Navbar bg="white" className="border-bottom shadow-sm py-3">
+        <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            
+            {/* CABEÇALHO PADRONIZADO E RESPONSIVO */}
+            <Navbar bg="white" className="border-bottom py-2 shadow-sm">
                 <Container>
-                    <Navbar.Brand className="d-flex align-items-center">
-                        <img src={configPrefeitura.logo || "/brasao_prefeitura.png"} alt="Brasão" height="50" className="me-3" />
-                        <div className="fw-bold text-dark">{configPrefeitura.nome}</div>
-                    </Navbar.Brand>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '12px' }}>
+                        <img 
+                            src={configPrefeitura.logo || "/brasao_prefeitura.png"} 
+                            alt="Brasão" 
+                            style={{ height: '45px', width: 'auto', flexShrink: 0 }} 
+                            onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }} 
+                        />
+                        <div style={{ flexGrow: 1, minWidth: 0 }}>
+                            <h6 className="fw-bold mb-0 text-dark" style={{ 
+                                fontSize: 'clamp(0.85rem, 4vw, 1.1rem)', 
+                                whiteSpace: 'normal',
+                                lineHeight: '1.2'
+                            }}>
+                                {configPrefeitura.nome || "Portal do Cidadão"}
+                            </h6>
+                            <div className="text-muted" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+                                Termo de Autorização
+                            </div>
+                        </div>
+                    </div>
                 </Container>
             </Navbar>
 
-            <Container className="py-5">
-                <Row className="justify-content-center">
-                    <Col md={8} lg={6}>
-                        <Card className="border-0 shadow-lg rounded-4 overflow-hidden">
-                            <div className="bg-primary p-4 text-white text-center">
-                                <FaShieldAlt size={50} className="mb-3" />
-                                <h4 className="fw-bold mb-0">Termo de Consentimento e LGPD</h4>
+            <Container className="py-4 flex-grow-1 d-flex flex-column justify-content-center">
+                <Row className="justify-content-center g-0">
+                    <Col xs={12} sm={10} md={8} lg={6}>
+                        <Card className="border-0 shadow-lg rounded-4 overflow-hidden mx-1">
+                            <div className="bg-primary p-3 p-md-4 text-white text-center">
+                                <FaShieldAlt size={40} className="mb-2" />
+                                <h5 className="fw-bold mb-0" style={{ fontSize: 'clamp(1rem, 5vw, 1.25rem)' }}>
+                                    Consentimento e LGPD
+                                </h5>
                             </div>
-                            <Card.Body className="p-4">
-                                <div className="mb-4 text-muted" style={{ textAlign: 'justify', fontSize: '0.95rem' }}>
+                            <Card.Body className="p-3 p-md-4">
+                                <div className="mb-4 text-muted" style={{ textAlign: 'justify', fontSize: '0.9rem', lineHeight: '1.5' }}>
                                     <p>Para prosseguir com a sua <strong>Atualização Cadastral Imobiliária</strong>, precisamos processar alguns dos seus dados pessoais e documentos.</p>
                                     
-                                    <p><FaLock className="me-2 text-primary" /> <strong>Segurança:</strong> Seus dados serão utilizados exclusivamente para a finalidade de atualização tributária municipal, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).</p>
+                                    <p className="d-flex align-items-start">
+                                        <FaLock className="me-2 text-primary mt-1" style={{ flexShrink: 0 }} /> 
+                                        <span><strong>Segurança:</strong> Seus dados serão utilizados exclusivamente para a finalidade de atualização tributária municipal (Lei nº 13.709/2018).</span>
+                                    </p>
                                     
-                                    <p>Ao clicar em aceitar, você autoriza a Prefeitura a:</p>
-                                    <ul>
-                                        <li>Realizar a leitura de documentos via Inteligência Artificial.</li>
-                                        <li>Validar sua identidade através de SMS (OTP).</li>
-                                        <li>Armazenar as informações atualizadas em nossa base de dados segura.</li>
+                                    <p className="mb-2">Ao clicar em aceitar, você autoriza:</p>
+                                    <ul className="ps-3 mb-0">
+                                        <li>Leitura de documentos via Inteligência Artificial.</li>
+                                        <li>Validação de identidade via SMS (OTP).</li>
+                                        <li>Armazenamento em base de dados segura.</li>
                                     </ul>
                                 </div>
 
@@ -59,8 +82,9 @@ const Autorizacao = () => {
                                     <Form.Check 
                                         type="checkbox"
                                         id="check-lgpd"
-                                        label="Li e concordo com os termos de uso e processamento de dados pessoais para fins de atualização cadastral."
+                                        label="Li e concordo com os termos de uso e processamento de dados pessoais."
                                         className="fw-bold small"
+                                        style={{ fontSize: '0.8rem' }}
                                         checked={aceitou}
                                         onChange={(e) => setAceitou(e.target.checked)}
                                     />
@@ -70,7 +94,8 @@ const Autorizacao = () => {
                                     <Button 
                                         variant="success" 
                                         size="lg" 
-                                        className="rounded-pill fw-bold shadow" 
+                                        className="rounded-pill fw-bold shadow py-3" 
+                                        style={{ fontSize: '1rem' }}
                                         disabled={!aceitou}
                                         onClick={handleProsseguir}
                                     >
@@ -78,7 +103,7 @@ const Autorizacao = () => {
                                     </Button>
                                     <Button 
                                         variant="link" 
-                                        className="text-muted text-decoration-none"
+                                        className="text-muted text-decoration-none small"
                                         onClick={() => navigate("/")}
                                     >
                                         Cancelar e Sair
@@ -86,12 +111,13 @@ const Autorizacao = () => {
                                 </div>
                             </Card.Body>
                         </Card>
-                        <div className="text-center mt-4 text-muted small">
-                            © 2026 Prefeitura Municipal - Portal do Cidadão
-                        </div>
                     </Col>
                 </Row>
             </Container>
+
+            <footer className="text-center py-3 text-muted mt-auto" style={{ fontSize: '10px' }}>
+                Desenvolvido por <strong>PrefeituraPro</strong>. © 2026
+            </footer>
         </div>
     );
 };
