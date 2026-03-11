@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    Container, Row, Col, Card, Button, Navbar, ProgressBar, Form, Spinner, Alert, InputGroup 
+    Container, Row, Col, Card, Button, ProgressBar, Spinner, Alert
 } from 'react-bootstrap';
 import { 
-    FaFileUpload, FaArrowLeft, FaExclamationTriangle, FaUniversity, FaSyncAlt, FaInfoCircle, FaMobileAlt, FaCheckCircle, FaEdit, FaMapMarkerAlt, FaEnvelope, FaIdCard
+    FaFileUpload, FaArrowLeft
 } from 'react-icons/fa';
+
+// --- IMPORTAÇÃO DOS COMPONENTES ---
+import HeaderResponsivo from "../../components/HeaderResponsivo";
+import QuadroDadosAtuais from "../../components/QuadroDadosAtuais";
+import FormularioExtracao from "../../components/FormularioExtracao";
+import VerificacaoContato from "../../components/VerificacaoContato";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
 
@@ -14,46 +20,37 @@ const normalizarTexto = (texto) => {
     if (!texto) return "";
     return texto
         .toUpperCase()
-        .normalize("NFD")               // Decompõe caracteres acentuados (ex: á -> a + ´)
-        .replace(/[\u0300-\u036f]/g, "") // Remove os acentos (diacríticos)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .trim();
 };
 
 const Atualizacao = () => {
     const navigate = useNavigate();
+
+    // --- TODOS OS ESTADOS ORIGINAIS ---
     const [dados, setDados] = useState(null);
     const [statusIA, setStatusIA] = useState("esperando");
     const [progresso, setProgresso] = useState(0);
     const [salvando, setSalvando] = useState(false);
     const [erroTitularidade, setErroTitularidade] = useState(null);
-
-    // --- ESTADOS PARA VALIDAÇÃO DE CPF ---
     const [validandoCPF, setValidandoCPF] = useState(false);
     const [cpfValidoOficial, setCpfValidoOficial] = useState(null); 
     const [erroCpfMensagem, setErroCpfMensagem] = useState("");
-
-    // --- ESTADO DE CONFIGURAÇÃO MESTRE ---
     const [stBloqueioResp, setStBloqueioResp] = useState("N"); 
-
-    // --- ESTADOS PARA TRAVA GEOGRÁFICA ---
     const [ehMunicipioOficial, setEhMunicipioOficial] = useState(false);
     const [municipioSede, setMunicipioSede] = useState("");
     const [carregandoConfig, setCarregandoConfig] = useState(true);
-
-    // --- NOVOS ESTADOS PARA AS LISTAS DOS COMBOS ---
     const [listaBairros, setListaBairros] = useState([]);
     const [listaLogradouros, setListaLogradouros] = useState([]);
-
     const [bairroValido, setBairroValido] = useState(true);
     const [logradouroValido, setLogradouroValido] = useState(true);
     const [stEditadoManual, setStEditadoManual] = useState("N");
-
     const [smsEnviado, setSmsEnviado] = useState(false);
     const [validandoSms, setValidandoSms] = useState(false);
     const [codigoOtp, setCodigoOtp] = useState("");
     const [telefoneVerificado, setTelefoneVerificado] = useState(false);
     const [enviandoSms, setEnviandoSms] = useState(false);
-
     const [emailEnviado, setEmailEnviado] = useState(false);
     const [validandoEmail, setValidandoEmail] = useState(false);
     const [codigoOtpEmail, setCodigoOtpEmail] = useState("");
@@ -61,35 +58,21 @@ const Atualizacao = () => {
     const [enviandoEmailOtp, setEnviandoEmailOtp] = useState(false);
 
     const [dadosOriginaisOCR, setDadosOriginaisOCR] = useState({
-        nm_rua_extr: "", 
-        ds_numero_extr: "",
-        nr_cep_extr: "",
-        ds_bairro_extr: "",
-        ds_cidade_extr: "",
-        ds_loteamento_extr: "",
-        ds_edificio_extr: "",
-        ds_complemento_extr: ""
+        nm_rua_extr: "", ds_numero_extr: "", nr_cep_extr: "", ds_bairro_extr: "", ds_cidade_extr: "", ds_loteamento_extr: "", ds_edificio_extr: "", ds_complemento_extr: ""
     });
 
     const [dadosExtraidos, setDadosExtraidos] = useState({
-        cd_contribuinte: "", nm_contribuinte: "",
-        nr_cpf_atual: "", nm_rua_atual: "",
-        ds_numero_atual: "", ds_bairro_atual: "",
-        ds_cidade_atual: "", nr_cep_atual: "",
-        nr_telefone_atual: "", ds_email_atual: "",
-        ds_obs: "",
-        st_responsavel: "N",
-        ds_loteamento_atual: "",
-        ds_edificio_atual: "",
-        ds_complemento_atual: ""
+        cd_contribuinte: "", nm_contribuinte: "", nr_cpf_atual: "", nm_rua_atual: "",
+        ds_numero_atual: "", ds_bairro_atual: "", ds_cidade_atual: "", nr_cep_atual: "",
+        nr_telefone_atual: "", ds_email_atual: "", ds_obs: "",
+        st_responsavel: "N", ds_loteamento_atual: "", ds_edificio_atual: "", ds_complemento_atual: ""
     });
 
     const [configPrefeitura, setConfigPrefeitura] = useState({ NOME: "", logo: "" });
 
-    // Lógica para travar campos se a autodeclaração for necessária e não estiver como "S"
     const aguardandoDeclaracao = erroTitularidade && stBloqueioResp === 'S' && dadosExtraidos.st_responsavel !== 'S';
 
-    // --- MÁSCARAS ---
+    // --- FUNÇÕES DE SUPORTE E MÁSCARAS ---
     const aplicarMascaraCPF = (v) => {
         v = v.replace(/\D/g, "");
         if (v.length <= 11) {
@@ -100,154 +83,6 @@ const Atualizacao = () => {
         return v;
     };
 
-    // --- BUSCA LISTAS PARA O COMBO (BAIRROS E LOGRADOUROS) ---
-    const carregarListasEndereco = async () => {
-        try {
-            const [resBairros, resLogradouros] = await Promise.all([
-                fetch(`${API_URL}/dadosbairros/listar`),
-                fetch(`${API_URL}/dadoslogradouros/listar`)
-            ]);
-            if (resBairros.ok) setListaBairros(await resBairros.json());
-            if (resLogradouros.ok) setListaLogradouros(await resLogradouros.json());
-        } catch (error) {
-            console.error("Erro ao carregar listas de seleção:", error);
-        }
-    };
-
-    // --- CONSULTA CPF NO BACKEND ---
-    const consultarCpfNoBackend = async (cpfInformado) => {
-        const nrLimpo = cpfInformado.replace(/\D/g, "");
-        if (nrLimpo.length !== 11) return;
-
-        setValidandoCPF(true);
-        setCpfValidoOficial(null);
-        setErroCpfMensagem("");
-
-        try {
-            const response = await fetch(`${API_URL}/dadoscontribuintes/validar-cpf/${nrLimpo}`);
-            const data = await response.json();
-
-            if (data.status) {
-                const nomeReceita = data.result.nome;
-                const score = verificarSimilaridade(nomeReceita, dadosExtraidos.nm_contribuinte);
-
-                if (score >= 75) {
-                    setCpfValidoOficial(true);
-                } else {
-                    setCpfValidoOficial(false);
-                    setErroCpfMensagem(`ESTE CPF PERTENCE A ${nomeReceita} E NÃO AO TITULAR DO COMPROVANTE.`);
-                }
-            } else {
-                setCpfValidoOficial(false);
-                setErroCpfMensagem(data.message || "CPF NÃO LOCALIZADO NA RECEITA.");
-            }
-        } catch (error) {
-            setErroCpfMensagem("ERRO AO CONECTAR COM O SERVIÇO DE VALIDAÇÃO.");
-        } finally {
-            setValidandoCPF(false);
-        }
-    };
-
-    // --- BUSCA CONFIGURAÇÕES GERAIS ---
-    const carregarDadosGerais = async () => {
-        try {
-            const response = await fetch(`${API_URL}/dadosgerais/config`); 
-            if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-            const data = await response.json();
-            if (data.sucesso) {
-                const valorLimpo = String(data.st_bloqueioresp || "N").trim().toUpperCase();
-                setStBloqueioResp(valorLimpo);
-            }
-        } catch (error) {
-            console.error("Erro ao carregar dados gerais:", error.message);
-        }
-    };
-
-    const carregarMunicipioSede = async () => {
-        try {
-            const response = await fetch(`${API_URL}/dadosmunicipios/padrao`, { method: "POST" });
-            const data = await response.json();
-            if (response.ok) {
-                setMunicipioSede(data.nm_municipio);
-            }
-        } catch (error) {
-            console.error("Erro ao carregar município sede:", error);
-        } finally {
-            setCarregandoConfig(false);
-        }
-    };
-
-    const validarBairroNoBanco = async (nomeBairro) => {
-        if (!nomeBairro) return;
-        const nomeLimpo = normalizarTexto(nomeBairro);
-        try {
-            const response = await fetch(`${API_URL}/dadosbairros/validar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nm_bairro: nomeLimpo })
-            });
-            const result = await response.json();
-            if (result.valido) {
-                setBairroValido(true);
-                setDadosExtraidos(prev => ({ ...prev, ds_bairro_atual: result.nomeOficial }));
-            } else { setBairroValido(false); }
-        } catch (error) { console.error("Erro ao validar bairro:", error); }
-    };
-
-    const validarLogradouroNoBanco = async (nomeLogradouro) => {
-        if (!nomeLogradouro) return;
-        const nomeLimpo = normalizarTexto(nomeLogradouro);
-        try {
-            const response = await fetch(`${API_URL}/dadoslogradouros/validar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nm_logradouro: nomeLimpo })
-            });
-            const result = await response.json();
-            if (result.valido) {
-                setLogradouroValido(true);
-                setDadosExtraidos(prev => ({ ...prev, nm_rua_atual: result.nomeOficial }));
-            } else { setLogradouroValido(false); }
-        } catch (error) { console.error("Erro ao validar logradouro:", error); }
-    };
-
-    const handleEnviarEmailOtp = async () => {
-        if (!dadosExtraidos.ds_email_atual || !dadosExtraidos.ds_email_atual.includes("@")) {
-            alert("Por favor, informe um e-mail válido.");
-            return;
-        }
-        setEnviandoEmailOtp(true);
-        try {
-            const response = await fetch(`${API_URL}/api/auth/enviar-otp-email`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: dadosExtraidos.ds_email_atual.toLowerCase() })
-            });
-            if (response.ok) {
-                setEmailEnviado(true);
-                alert("Código enviado para seu e-mail!");
-            }
-        } catch (error) { alert("Erro de conexão."); }
-        finally { setEnviandoEmailOtp(false); }
-    };
-
-    const handleValidarCodigoEmail = async () => {
-        setValidandoEmail(true); 
-        try {
-            const response = await fetch(`${API_URL}/api/auth/validar-otp-email`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: dadosExtraidos.ds_email_atual.toLowerCase(), codigo: codigoOtpEmail })
-            });
-            const result = await response.json();
-            if (result.sucesso) {
-                setEmailVerificado(true);
-                alert("E-mail verificado com sucesso!");
-            } else { alert("Código inválido."); }
-        } catch (error) { alert("Erro ao validar e-mail."); }
-        finally { setValidandoEmail(false); }
-    };
-
     const aplicarMascaraTelefone = (valor) => {
         if (!valor) return "";
         valor = valor.replace(/\D/g, "");
@@ -256,22 +91,118 @@ const Atualizacao = () => {
         return valor.substring(0, 15);
     };
 
+    // --- CARREGAMENTO DE DADOS ---
+    const carregarListasEndereco = async () => {
+        try {
+            const [resBairros, resLogradouros] = await Promise.all([
+                fetch(`${API_URL}/dadosbairros/listar`),
+                fetch(`${API_URL}/dadoslogradouros/listar`)
+            ]);
+            if (resBairros.ok) setListaBairros(await resBairros.json());
+            if (resLogradouros.ok) setListaLogradouros(await resLogradouros.json());
+        } catch (error) { console.error("Erro ao carregar listas de seleção:", error); }
+    };
+
+    const consultarCpfNoBackend = async (cpfInformado) => {
+        const nrLimpo = cpfInformado.replace(/\D/g, "");
+        if (nrLimpo.length !== 11) return;
+        setValidandoCPF(true); setCpfValidoOficial(null); setErroCpfMensagem("");
+        try {
+            const response = await fetch(`${API_URL}/dadoscontribuintes/validar-cpf/${nrLimpo}`);
+            const data = await response.json();
+            if (data.status) {
+                const nomeReceita = data.result.nome;
+                const score = verificarSimilaridade(nomeReceita, dadosExtraidos.nm_contribuinte);
+                if (score >= 75) { setCpfValidoOficial(true); } 
+                else { setCpfValidoOficial(false); setErroCpfMensagem(`ESTE CPF PERTENCE A ${nomeReceita} E NÃO AO TITULAR DO COMPROVANTE.`); }
+            } else { setCpfValidoOficial(false); setErroCpfMensagem(data.message || "CPF NÃO LOCALIZADO NA RECEITA."); }
+        } catch (error) { setErroCpfMensagem("ERRO AO CONECTAR COM O SERVIÇO DE VALIDAÇÃO."); } 
+        finally { setValidandoCPF(false); }
+    };
+
+    const carregarDadosGerais = async () => {
+        try {
+            const response = await fetch(`${API_URL}/dadosgerais/config`); 
+            if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+            const data = await response.json();
+            if (data.sucesso) setStBloqueioResp(String(data.st_bloqueioresp || "N").trim().toUpperCase());
+        } catch (error) { console.error("Erro ao carregar dados gerais:", error.message); }
+    };
+
+    const carregarMunicipioSede = async () => {
+        try {
+            const response = await fetch(`${API_URL}/dadosmunicipios/padrao`, { method: "POST" });
+            const data = await response.json();
+            if (response.ok) setMunicipioSede(data.nm_municipio);
+        } catch (error) { console.error("Erro ao carregar município sede:", error); } 
+        finally { setCarregandoConfig(false); }
+    };
+
+    const validarBairroNoBanco = async (nomeBairro) => {
+        if (!nomeBairro) return;
+        const nomeLimpo = normalizarTexto(nomeBairro);
+        try {
+            const response = await fetch(`${API_URL}/dadosbairros/validar`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nm_bairro: nomeLimpo })
+            });
+            const result = await response.json();
+            if (result.valido) { setBairroValido(true); setDadosExtraidos(prev => ({ ...prev, ds_bairro_atual: result.nomeOficial })); } 
+            else { setBairroValido(false); }
+        } catch (error) { console.error("Erro ao validar bairro:", error); }
+    };
+
+    const validarLogradouroNoBanco = async (nomeLogradouro) => {
+        if (!nomeLogradouro) return;
+        const nomeLimpo = normalizarTexto(nomeLogradouro);
+        try {
+            const response = await fetch(`${API_URL}/dadoslogradouros/validar`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nm_logradouro: nomeLimpo })
+            });
+            const result = await response.json();
+            if (result.valido) { setLogradouroValido(true); setDadosExtraidos(prev => ({ ...prev, nm_rua_atual: result.nomeOficial })); } 
+            else { setLogradouroValido(false); }
+        } catch (error) { console.error("Erro ao validar logradouro:", error); }
+    };
+
+    // --- FUNÇÕES DE VERIFICAÇÃO (OTP) ---
+    const handleEnviarEmailOtp = async () => {
+        if (!dadosExtraidos.ds_email_atual || !dadosExtraidos.ds_email_atual.includes("@")) { alert("Informe um e-mail válido."); return; }
+        setEnviandoEmailOtp(true);
+        try {
+            const response = await fetch(`${API_URL}/api/auth/enviar-otp-email`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: dadosExtraidos.ds_email_atual.toLowerCase() })
+            });
+            if (response.ok) { setEmailEnviado(true); alert("Código enviado para seu e-mail!"); }
+        } catch (error) { alert("Erro de conexão."); } finally { setEnviandoEmailOtp(false); }
+    };
+
+    const handleValidarCodigoEmail = async () => {
+        setValidandoEmail(true); 
+        try {
+            const response = await fetch(`${API_URL}/api/auth/validar-otp-email`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: dadosExtraidos.ds_email_atual.toLowerCase(), codigo: codigoOtpEmail })
+            });
+            const result = await response.json();
+            if (result.sucesso) { setEmailVerificado(true); alert("E-mail verificado com sucesso!"); } 
+            else { alert("Código inválido."); }
+        } catch (error) { alert("Erro ao validar e-mail."); } finally { setValidandoEmail(false); }
+    };
+
     const handleEnviarSms = async () => {
-        if (!dadosExtraidos.nr_telefone_atual || dadosExtraidos.nr_telefone_atual.length < 10) {
-            alert("Informe um celular válido.");
-            return;
-        }
+        if (!dadosExtraidos.nr_telefone_atual || dadosExtraidos.nr_telefone_atual.length < 10) { alert("Informe um celular válido."); return; }
         setEnviandoSms(true);
         try {
             const telLimpo = `+55${dadosExtraidos.nr_telefone_atual.replace(/\D/g, "")}`;
             const response = await fetch(`${API_URL}/api/auth/enviar-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ telefone: telLimpo })
             });
             if (response.ok) { setSmsEnviado(true); alert("Código enviado!"); }
-        } catch (error) { alert("Erro de conexão."); }
-        finally { setEnviandoSms(false); }
+        } catch (error) { alert("Erro de conexão."); } finally { setEnviandoSms(false); }
     };
 
     const handleValidarCodigo = async () => {
@@ -279,14 +210,12 @@ const Atualizacao = () => {
         try {
             const telLimpo = `+55${dadosExtraidos.nr_telefone_atual.replace(/\D/g, "")}`;
             const response = await fetch(`${API_URL}/api/auth/validar-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ telefone: telLimpo, codigo: codigoOtp })
             });
             const result = await response.json();
             if (result.sucesso) { setTelefoneVerificado(true); alert("Identidade confirmada!"); }
-        } catch (error) { alert("Erro ao validar."); }
-        finally { setValidandoSms(false); }
+        } catch (error) { alert("Erro ao validar."); } finally { setValidandoSms(false); }
     };
 
     const verificarSimilaridade = (nomeSistema, nomeExtraido) => {
@@ -300,6 +229,7 @@ const Atualizacao = () => {
         return (matches.length / Math.max(palavrasS1.length, palavrasS2.length)) * 100;
     };
 
+    // --- EFFECTS ---
     useEffect(() => {
         const storedData = localStorage.getItem("dados_imovel");
         const storedConfig = localStorage.getItem("config_prefeitura");
@@ -312,511 +242,142 @@ const Atualizacao = () => {
             const config = JSON.parse(storedConfig);
             setConfigPrefeitura({ NOME: config.nm_cliente, logo: config.by_brasaoprefeitura });
         }
-        carregarMunicipioSede();
-        carregarDadosGerais();
+        carregarMunicipioSede(); carregarDadosGerais();
     }, [navigate]);
 
-    // Hook para carregar listas quando o município é definido
-    useEffect(() => {
-        if (municipioSede) {
-            carregarListasEndereco();
-        }
-    }, [municipioSede]);
+    useEffect(() => { if (municipioSede) carregarListasEndereco(); }, [municipioSede]);
 
+    // --- PROCESSAMENTO OCR ---
     const processarArquivoReal = async (e) => {
-        const arquivo = e.target.files[0];
-        if (!arquivo) return;
-
-        setErroTitularidade(null);
-        setCpfValidoOficial(null);
-        setErroCpfMensagem("");
-        setEmailEnviado(false);
-        setEmailVerificado(false);
-        setSmsEnviado(false);
-        setTelefoneVerificado(false);
-        setCodigoOtp("");
-        setCodigoOtpEmail("");
-        setStEditadoManual("N");
-        setLogradouroValido(true);
-        setBairroValido(true);
-        
-        setDadosExtraidos({
-            cd_contribuinte: dados?.id_dados_imoveis || "",
-            nm_contribuinte: "",
-            nr_cpf_atual: "",
-            nm_rua_atual: "",
-            ds_numero_atual: "",
-            ds_bairro_atual: "",
-            ds_cidade_atual: "",
-            nr_cep_atual: "",
-            nr_telefone_atual: "",
-            ds_email_atual: "",
-            ds_obs: "",
-            st_responsavel: "N"
-        });
-
-        setStatusIA("processando");
-        setProgresso(30); 
-
-        const formData = new FormData();
-        formData.append('comprovante', arquivo); 
+        const arquivo = e.target.files[0]; if (!arquivo) return;
+        setErroTitularidade(null); setCpfValidoOficial(null); setStatusIA("processando"); setProgresso(30); 
+        const formData = new FormData(); formData.append('comprovante', arquivo); 
         try {
-            const response = await fetch(`${API_URL}/dadoscontribuintes/processar-comprovante`, {
-                method: "POST",
-                body: formData, 
-            });
+            const response = await fetch(`${API_URL}/dadoscontribuintes/processar-comprovante`, { method: "POST", body: formData });
             const dataOCR = await response.json();
             if (!response.ok) throw new Error(dataOCR.erro || "Falha na leitura.");
             setProgresso(100);
-            
             const nomeLido = dataOCR.nm_contribuinte || "";
-            const nomeNoSistema = dados.nm_responsavel;
-            const score = verificarSimilaridade(nomeNoSistema, nomeLido);
-
+            const score = verificarSimilaridade(dados.nm_responsavel, nomeLido);
             if (score < 50 && stBloqueioResp === "N") {
-                setStatusIA("esperando");
-                setErroTitularidade(`BLOQUEIO: O NOME NO COMPROVANTE (${nomeLido}) É DIFERENTE DO PROPRIETÁRIO (${nomeNoSistema}). ESTA PREFEITURA NÃO PERMITE ALTERAÇÕES PARA TERCEIROS.`);
+                setStatusIA("esperando"); setErroTitularidade(`BLOQUEIO: O NOME NO COMPROVANTE É DIFERENTE DO SISTEMA.`);
                 setDadosExtraidos(prev => ({ ...prev, nm_contribuinte: nomeLido, st_responsavel: "N" }));
             } else {
                 setStatusIA("concluido");
-                if (score < 50 && stBloqueioResp === "S") {
-                    setErroTitularidade(`AVISO: TITULARIDADE DIFERENTE (${nomeLido}), MAS A EDIÇÃO FOI LIBERADA PELA PREFEITURA.`);
-                }
-                setDadosOriginaisOCR({
-                    nm_rua_extr: dataOCR.nm_rua_atual || "",
-                    ds_numero_extr: dataOCR.ds_numero_atual || "",
-                    nr_cep_extr: dataOCR.nr_cep_atual || "",
-                    ds_bairro_extr: dataOCR.ds_bairro_atual || "",
-                    ds_cidade_extr: dataOCR.ds_cidade_atual || "",
-                    ds_loteamento_extr: dataOCR.ds_loteamento_extr || "",
-                    ds_edificio_extr: dataOCR.ds_edificio_extr || "",
-                    ds_complemento_extr: dataOCR.ds_complemento_extr || ""
-                });
-
+                if (score < 50 && stBloqueioResp === "S") setErroTitularidade(`AVISO: TITULARIDADE DIFERENTE, MAS A EDIÇÃO FOI LIBERADA.`);
+                setDadosOriginaisOCR({ nm_rua_extr: dataOCR.nm_rua_atual || "", ds_numero_extr: dataOCR.ds_numero_atual || "", nr_cep_extr: dataOCR.nr_cep_atual || "", ds_bairro_extr: dataOCR.ds_bairro_atual || "", ds_cidade_extr: dataOCR.ds_cidade_atual || "", ds_loteamento_extr: dataOCR.ds_loteamento_extr || "", ds_edificio_extr: dataOCR.ds_edificio_extr || "", ds_complemento_extr: dataOCR.ds_complemento_extr || "" });
                 setDadosExtraidos(prev => ({ ...prev, ...dataOCR, ds_obs: "Validado via AtualizaAI Vision" }));
                 setStEditadoManual("N");
-
                 const cidadeLida = (dataOCR.ds_cidade_atual || "").toUpperCase().trim();
                 const cidadeSede = (municipioSede || "").toUpperCase().trim();
-
                 if (cidadeLida === cidadeSede && cidadeSede !== "") {
                     setEhMunicipioOficial(true);
                     if (dataOCR.ds_bairro_atual) await validarBairroNoBanco(dataOCR.ds_bairro_atual);
                     if (dataOCR.nm_rua_atual) await validarLogradouroNoBanco(dataOCR.nm_rua_atual);
-                } else {
-                    setEhMunicipioOficial(false); setBairroValido(false); setLogradouroValido(false); setStEditadoManual("S");
-                }
+                } else { setEhMunicipioOficial(false); setBairroValido(false); setLogradouroValido(false); setStEditadoManual("S"); }
             }
-        } catch (error) {
-            setStatusIA("esperando"); setErroTitularidade(error.message);
-        }
+        } catch (error) { setStatusIA("esperando"); setErroTitularidade(error.message); }
     };
 
+    // --- SALVAMENTO FINAL ---
     const handleSalvar = async () => {
-        if (erroTitularidade && stBloqueioResp === 'S' && dadosExtraidos.st_responsavel !== 'S') {
-            alert("Você precisa se declarar responsável pelo imóvel para continuar.");
-            return;
-        }
-        if (cpfValidoOficial !== true) {
-            alert("Valide o CPF corretamente antes de prosseguir.");
-            return;
-        }
-        if (!telefoneVerificado) {
-            alert("Validação por SMS obrigatória!"); return;
-        }
-        if (dadosExtraidos.ds_email_atual && !emailVerificado) {
-            alert("A verificação do e-mail é obrigatória!"); return;
-        }
+        if (erroTitularidade && stBloqueioResp === 'S' && dadosExtraidos.st_responsavel !== 'S') { alert("Confirme sua responsabilidade."); return; }
+        if (cpfValidoOficial !== true) { alert("Valide o CPF."); return; }
+        if (!telefoneVerificado) { alert("Validação SMS obrigatória!"); return; }
+        if (dadosExtraidos.ds_email_atual && !emailVerificado) { alert("Verificação de e-mail obrigatória!"); return; }
         setSalvando(true);
         const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-        const random = Math.floor(Math.random() * 999).toString().padStart(3, '0');
-        const nrProtocolo = `${date}-${random}`;
-        
-        const dadosParaEnviar = {
-            ...dadosExtraidos,
-            id_dados_imoveis: dados.id_dados_imoveis,
-            ds_inscricao_imovel: dados.ds_inscricao,
-            cd_reduzido_imovel: dados.cd_reduzido,
-            cd_contribuinte: dados.cd_responsavel,
-            ds_protocolo: nrProtocolo,
-            st_editado_manual: stEditadoManual,
-            nm_rua_extr: dadosOriginaisOCR.nm_rua_extr,
-            ds_numero_extr: dadosOriginaisOCR.ds_numero_extr,
-            nr_cep_extr: dadosOriginaisOCR.nr_cep_extr,
-            ds_bairro_extr: dadosOriginaisOCR.ds_bairro_extr,
-            ds_cidade_extr: dadosOriginaisOCR.ds_cidade_extr,
-            tp_rua_extr: 'RUA',
-            ds_loteamento_extr: dadosOriginaisOCR.ds_loteamento_extr,
-            ds_edificio_extr: dadosOriginaisOCR.ds_edificio_extr,
-            ds_complemento_extr: dadosOriginaisOCR.ds_complemento_extr            
-        };
-
+        const nrProtocolo = `${date}-${Math.floor(Math.random() * 999).toString().padStart(3, '0')}`;
+        const dadosParaEnviar = { ...dadosExtraidos, id_dados_imoveis: dados.id_dados_imoveis, ds_inscricao_imovel: dados.ds_inscricao, cd_reduzido_imovel: dados.cd_reduzido, cd_contribuinte: dados.cd_responsavel, ds_protocolo: nrProtocolo, st_editado_manual: stEditadoManual, nm_rua_extr: dadosOriginaisOCR.nm_rua_extr, ds_numero_extr: dadosOriginaisOCR.ds_numero_extr, nr_cep_extr: dadosOriginaisOCR.nr_cep_extr, ds_bairro_extr: dadosOriginaisOCR.ds_bairro_extr, ds_cidade_extr: dadosOriginaisOCR.ds_cidade_extr, tp_rua_extr: 'RUA', ds_loteamento_extr: dadosOriginaisOCR.ds_loteamento_extr, ds_edificio_extr: dadosOriginaisOCR.ds_edificio_extr, ds_complemento_extr: dadosOriginaisOCR.ds_complemento_extr };
         try {
-            const response = await fetch(`${API_URL}/dadoscontribuintes/salvar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(dadosParaEnviar)
-            });
+            const response = await fetch(`${API_URL}/dadoscontribuintes/salvar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dadosParaEnviar) });
             if (response.ok) {
                 localStorage.setItem("protocolo_gerado", nrProtocolo);
                 localStorage.setItem("email_usuario", dadosExtraidos.ds_email_atual.toLowerCase());
                 localStorage.setItem("nome_usuario", dadosExtraidos.nm_contribuinte);
                 navigate("/conclusao"); 
             } else { alert("Erro ao persistir os dados."); }
-        } catch (error) { alert("Erro de conexão."); }
-        finally { setSalvando(false); }
+        } catch (error) { alert("Erro de conexão."); } finally { setSalvando(false); }
     };
 
-    // --- BLOCO 02 INICIA AQUI ---
+    if (!dados || carregandoConfig) return <div className="text-center py-5"><Spinner animation="border" /></div>;
 
-    if (!dados || carregandoConfig) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <Spinner animation="border" variant="primary" />
-            </div>
-        );
-    }
-
+    // --- RENDERIZAÇÃO ---
     return (
-        <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-            <Navbar bg="white" className="border-bottom py-2 shadow-sm">
-                <Container>
-                    <Navbar.Brand className="d-flex align-items-center">
-                        <img src={configPrefeitura.logo} alt="Brasão" height="40" className="me-3" onError={(e) => { e.target.src = "/brasao_prefeitura.png"; }} />
-                        <h5 className="fw-bold mb-0 text-dark">{configPrefeitura.NOME}</h5>
-                    </Navbar.Brand>
-                </Container>
-            </Navbar>
+        <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <HeaderResponsivo logo={configPrefeitura.logo} nome={configPrefeitura.NOME} />
 
-            <Container className="py-4">                 
-                <Card className="border-0 shadow-sm rounded-4 mb-4" style={{ borderLeft: '8px solid #6c757d' }}>
-                    <Card.Body className="bg-light rounded-4 p-4">
-                        <div className="mb-3 border-bottom pb-3">
-                            <div className="d-flex align-items-center text-secondary mb-1">
-                                <FaUniversity className="me-2" />
-                                <h6 className="fw-bold mb-0 text-uppercase ls-1">Informações na Base da Prefeitura (Atual)</h6>
-                            </div>
-                            <small className="text-muted d-flex align-items-center">
-                                <FaInfoCircle className="me-1" /> Dados atuais do sistema.
-                            </small>
-                        </div>
-                        <Row className="g-3 small text-muted text-uppercase">
-                            <Col md={4}><strong>NOME:</strong><br/><span className="text-dark fw-bold">{dados.nm_responsavel}</span></Col>
-                            <Col md={5}><strong>ENDEREÇO:</strong><br/><span className="text-dark fw-bold">{dados.nm_logradouro_resp}, {dados.ds_numero_resp}</span></Col>
-                            <Col md={3}><strong>BAIRRO:</strong><br/><span className="text-dark fw-bold">{dados.nm_bairro_resp}</span></Col>
-                            <Col md={3}><strong>CIDADE:</strong><br/><span className="text-dark fw-bold">{dados.ds_cidade_resp || 'CRICIÚMA'}</span></Col>
-                            <Col md={2}><strong>CEP:</strong><br/><span className="text-dark fw-bold">{dados.nr_cep_resp}</span></Col>
-                        </Row>
-                    </Card.Body>
-                </Card>
+            <Container className="py-3 flex-grow-1">
+                <QuadroDadosAtuais dados={dados} />
 
-                <Row>
-                    <Col lg={4} className="mb-4">
-                        <Card className={`border-0 shadow-sm rounded-4 p-3 h-100 ${erroTitularidade && stBloqueioResp === 'N' ? 'border-danger border-2' : ''}`}>
+                <Row className="g-3">
+                    <Col xs={12} lg={4}>
+                        <Card className={`border-0 shadow-sm rounded-4 p-2 h-100 ${erroTitularidade ? 'border-danger border-2' : ''}`}>
                             <div className="border-dashed rounded-4 p-4 text-center d-flex flex-column align-items-center justify-content-center h-100" 
-                                 style={{ border: '2px dashed #0d6efd', backgroundColor: '#f8fbff', cursor: 'pointer' }}
+                                 style={{ border: '2px dashed #0d6efd', backgroundColor: '#f8fbff', cursor: 'pointer', minHeight: '180px' }}
                                  onClick={() => document.getElementById('up-doc').click()}>
-                                <FaFileUpload size={40} className={erroTitularidade && stBloqueioResp === 'N' ? "text-danger mb-3" : "text-primary mb-3"} />
-                                <h6 className={`fw-bold ${erroTitularidade && stBloqueioResp === 'N' ? 'text-danger' : 'text-primary'}`}>ANEXAR COMPROVANTE</h6>
-                                <p className="text-muted small">Conta de Luz ou Água recente.</p>
+                                <FaFileUpload size={35} className="text-primary mb-2" />
+                                <h6 className="fw-bold small">ANEXAR COMPROVANTE</h6>
+                                <p className="text-muted" style={{ fontSize: '11px', lineHeight: '1.2' }}>
+                                    Conta de Luz, água ou telefone recente.
+                                </p>
                                 <input type="file" id="up-doc" hidden onChange={processarArquivoReal} accept="image/*,.pdf" />
-                                {statusIA === "processando" ? <ProgressBar animated now={progresso} className="w-100 mt-2" style={{height: '8px'}} /> : <Button variant={erroTitularidade && stBloqueioResp === 'N' ? "danger" : "outline-primary"} size="sm" className="rounded-pill mt-2 px-4 shadow-sm">Selecionar</Button>}
+                                {statusIA === "processando" ? <ProgressBar animated now={progresso} className="w-100 mt-2" /> : <Button variant="outline-primary" size="sm" className="mt-2">Selecionar</Button>}
                             </div>
                         </Card>
                     </Col>
 
-                    <Col lg={8} className="mb-4">
-                        {erroTitularidade && (
-                            <Alert variant={stBloqueioResp === 'N' ? 'danger' : 'warning'} className="py-2 shadow-sm border-0 mb-3 text-uppercase small">
-                                {erroTitularidade}
-                            </Alert>
-                        )}
-                        <Card className="border-0 shadow rounded-4 p-4" style={{ borderTop: '6px solid #198754' }}>
-                            <div className="mb-4 border-bottom pb-3">
-                                <div className="d-flex align-items-center text-success mb-1">
-                                    <FaSyncAlt className="me-2" />
-                                    <h6 className="fw-bold mb-0 text-uppercase">Dados Extraídos</h6>
-                                </div>
-                            </div>
+                    <Col xs={12} lg={8}>                        
+                    <FormularioExtracao 
+                        dadosExtraidos={dadosExtraidos} 
+                        setDadosExtraidos={setDadosExtraidos} 
+                        statusIA={statusIA}
+                        aguardandoDeclaracao={aguardandoDeclaracao}
+                        erroTitularidade={erroTitularidade}
+                        stBloqueioResp={stBloqueioResp}
+                        validandoCPF={validandoCPF}
+                        cpfValidoOficial={cpfValidoOficial}
+                        consultarCpfNoBackend={consultarCpfNoBackend}
+                        aplicarMascaraCPF={aplicarMascaraCPF}
+                        ehMunicipioOficial={ehMunicipioOficial}
+                        listaLogradouros={listaLogradouros}
+                        setStEditadoManual={setStEditadoManual}
+                        setLogradouroValido={setLogradouroValido}
+                        logradouroValido={logradouroValido} // <--- ADICIONE ESTA
+                        listaBairros={listaBairros}
+                        setBairroValido={setBairroValido}
+                        bairroValido={bairroValido} // <--- ADICIONE ESTA
+                        erroCpfMensagem={erroCpfMensagem} // <--- ADICIONE ESTA
+                        municipioSede={municipioSede} // <--- ADICIONE ESTA
+                    />
 
-                            <Form className="text-uppercase">
-                                <Row className="g-3">
-                                    <Col md={12}>
-                                        <Form.Label className="small fw-bold text-success">NOME NO DOCUMENTO</Form.Label>
-                                        <Form.Control size="sm" className="bg-white fw-bold" value={dadosExtraidos.nm_contribuinte} readOnly />
-                                    </Col>
-
-                                    {erroTitularidade && stBloqueioResp === 'S' && (
-                                        <Col md={12} className="mb-3">
-                                            <div className="p-3 border rounded-3 bg-light border-warning shadow-sm">
-                                                <Form.Label className="small fw-bold text-dark d-flex align-items-center">
-                                                    <FaEdit className="me-2 text-warning"/> VOCÊ É O RESPONSÁVEL PELO IMÓVEL?
-                                                </Form.Label>
-                                                <Form.Select 
-                                                    size="sm" 
-                                                    className="fw-bold border-warning"
-                                                    value={dadosExtraidos.st_responsavel}
-                                                    onChange={(e) => setDadosExtraidos({...dadosExtraidos, st_responsavel: e.target.value})}
-                                                >
-                                                    <option value="N">SELECIONE UMA OPÇÃO...</option>
-                                                    <option value="S">SIM, SOU O RESPONSÁVEL</option>
-                                                    <option value="N">NÃO SOU O RESPONSÁVEL</option>
-                                                </Form.Select>
-                                                <small className="text-muted" style={{fontSize: '11px'}}>* Necessário confirmar para liberar a edição abaixo.</small>
-                                            </div>
-                                        </Col>
-                                    )}
-
-                                    <Col md={6}>
-                                        <Form.Label className="small fw-bold text-primary"><FaIdCard className="me-1"/> CPF DO RESPONSÁVEL</Form.Label>
-                                        <InputGroup size="sm">
-                                            <Form.Control 
-                                                placeholder="000.000.000-00" 
-                                                value={dadosExtraidos.nr_cpf_atual} 
-                                                onChange={(e) => setDadosExtraidos({...dadosExtraidos, nr_cpf_atual: aplicarMascaraCPF(e.target.value)})} 
-                                                onBlur={(e) => consultarCpfNoBackend(e.target.value)}
-                                                readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
-                                                className={`fw-bold ${cpfValidoOficial === true ? "border-success" : cpfValidoOficial === false ? "border-danger" : ""}`}
-                                            />
-                                            {validandoCPF && <InputGroup.Text className="bg-white"><Spinner animation="border" size="sm" /></InputGroup.Text>}
-                                        </InputGroup>
-                                        {cpfValidoOficial === true && <small className="text-success fw-bold">✓ VALIDADO NA RECEITA</small>}
-                                        {cpfValidoOficial === false && <small className="text-danger fw-bold">{erroCpfMensagem}</small>}
-                                    </Col>
-
-                                    <Col md={6}></Col>
-
-                                    {/* LOGRADOURO: COMBO SE FOR MUNICÍPIO SEDE, SENÃO CAMPO LIVRE */}
-                                    <Col md={9}>
-                                        <Form.Label className="small fw-bold">RUA/LOGRADOURO</Form.Label>
-                                        <InputGroup size="sm">
-                                            {ehMunicipioOficial ? (
-                                                <Form.Select
-                                                    size="sm"
-                                                    value={dadosExtraidos.nm_rua_atual}
-                                                    onChange={(e) => {
-                                                        setDadosExtraidos({...dadosExtraidos, nm_rua_atual: e.target.value});
-                                                        setStEditadoManual("S");
-                                                        setLogradouroValido(true);
-                                                    }}
-                                                    disabled={statusIA !== "concluido" || aguardandoDeclaracao}
-                                                    className={`fw-bold ${logradouroValido ? "border-success bg-white" : "border-danger bg-white"}`}
-                                                >
-                                                    <option value="">SELECIONE O LOGRADOURO...</option>
-                                                    {listaLogradouros.map((rua, idx) => (
-                                                        <option key={idx} value={rua.nm_logradouro}>{rua.nm_logradouro}</option>
-                                                    ))}
-                                                </Form.Select>
-                                            ) : (
-                                                <Form.Control 
-                                                    value={dadosExtraidos.nm_rua_atual} 
-                                                    onChange={(e) => {
-                                                        setDadosExtraidos({...dadosExtraidos, nm_rua_atual: e.target.value.toUpperCase()});
-                                                        setStEditadoManual("S");
-                                                        if(logradouroValido) setLogradouroValido(false); 
-                                                    }}
-                                                    onBlur={(e) => ehMunicipioOficial && validarLogradouroNoBanco(e.target.value)}
-                                                    readOnly={statusIA !== "concluido" || aguardandoDeclaracao} 
-                                                    className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? "border-primary bg-white" : "bg-light"}`}
-                                                />
-                                            )}
-                                        </InputGroup>
-                                        {statusIA === "concluido" && !aguardandoDeclaracao && (
-                                            <small className={`fw-bold ${ehMunicipioOficial ? (logradouroValido ? "text-success" : "text-danger") : "text-primary"}`} style={{fontSize: '10px'}}>
-                                                {!ehMunicipioOficial ? <><FaMapMarkerAlt className="me-1"/> Endereço fora de {municipioSede}. Digitação livre permitida.</> : (logradouroValido ? <><FaCheckCircle className="me-1"/> Logradouro oficial localizado.</> : <><FaExclamationTriangle className="me-1"/> Logradouro não encontrado na base oficial de {municipioSede}.</>)}
-                                            </small>
-                                        )}
-                                    </Col>
-
-                                    <Col md={3}>
-                                        <Form.Label className="small fw-bold">Nº</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            value={dadosExtraidos.ds_numero_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, ds_numero_atual: e.target.value});
-                                                setStEditadoManual("S");
-                                            }} 
-                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao} 
-                                        />
-                                    </Col>
-
-                                    <Col md={4}>
-                                        <Form.Label className="small fw-bold text-muted">LOTEAMENTO</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            placeholder="NOME DO LOTEAMENTO"
-                                            value={dadosExtraidos.ds_loteamento_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, ds_loteamento_atual: e.target.value.toUpperCase()});
-                                                setStEditadoManual("S");
-                                            }}
-                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
-                                            className="bg-white fw-bold"
-                                        />
-                                    </Col>
-
-                                    <Col md={4}>
-                                        <Form.Label className="small fw-bold text-muted">EDIFÍCIO</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            placeholder="NOME DO EDIFÍCIO"
-                                            value={dadosExtraidos.ds_edificio_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, ds_edificio_atual: e.target.value.toUpperCase()});
-                                                setStEditadoManual("S");
-                                            }}
-                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
-                                            className="bg-white fw-bold"
-                                        />
-                                    </Col>
-
-                                    <Col md={4}>
-                                        <Form.Label className="small fw-bold text-muted">COMPLEMENTO</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            placeholder="APTO / BLOCO / SALA"
-                                            value={dadosExtraidos.ds_complemento_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, ds_complemento_atual: e.target.value.toUpperCase()});
-                                                setStEditadoManual("S");
-                                            }}
-                                            readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
-                                            className="bg-white fw-bold"
-                                        />
-                                    </Col>
-                                    
-                                    {/* BAIRRO: COMBO SE FOR MUNICÍPIO SEDE, SENÃO CAMPO LIVRE */}
-                                    <Col md={5}>
-                                        <Form.Label className="small fw-bold">BAIRRO</Form.Label>
-                                        <InputGroup size="sm">
-                                            {ehMunicipioOficial ? (
-                                                <Form.Select
-                                                    size="sm"
-                                                    value={dadosExtraidos.ds_bairro_atual}
-                                                    onChange={(e) => {
-                                                        setDadosExtraidos({...dadosExtraidos, ds_bairro_atual: e.target.value});
-                                                        setStEditadoManual("S");
-                                                        setBairroValido(true);
-                                                    }}
-                                                    disabled={statusIA !== "concluido" || aguardandoDeclaracao}
-                                                    className={`fw-bold ${bairroValido ? "border-success bg-white" : "border-danger bg-white"}`}
-                                                >
-                                                    <option value="">SELECIONE O BAIRRO...</option>
-                                                    {listaBairros.map((b, idx) => (
-                                                        <option key={idx} value={b.nm_bairro}>{b.nm_bairro}</option>
-                                                    ))}
-                                                </Form.Select>
-                                            ) : (
-                                                <Form.Control 
-                                                    value={dadosExtraidos.ds_bairro_atual} 
-                                                    onChange={(e) => {
-                                                        setDadosExtraidos({...dadosExtraidos, ds_bairro_atual: e.target.value.toUpperCase()});
-                                                        setStEditadoManual("S");
-                                                        if(bairroValido) setBairroValido(false); 
-                                                    }}
-                                                    onBlur={(e) => ehMunicipioOficial && validarBairroNoBanco(e.target.value)}
-                                                    readOnly={statusIA !== "concluido" || aguardandoDeclaracao}
-                                                    className={`fw-bold ${statusIA === "concluido" && !aguardandoDeclaracao ? "border-primary bg-white" : "bg-light"}`}
-                                                />
-                                            )}
-                                        </InputGroup>
-                                        {statusIA === "concluido" && !aguardandoDeclaracao && (
-                                            <small className={`fw-bold ${ehMunicipioOficial ? (bairroValido ? "text-success" : "text-danger") : "text-primary"}`} style={{fontSize: '10px'}}>
-                                                {!ehMunicipioOficial ? <><FaMapMarkerAlt className="me-1"/> Endereço de outro município. Digitação livre permitida.</> : (bairroValido ? <><FaCheckCircle className="me-1"/> Bairro oficial localizado.</> : <><FaExclamationTriangle className="me-1"/> Bairro não encontrado na base oficial de {municipioSede}.</>)}
-                                            </small>
-                                        )}
-                                    </Col>
-
-                                    <Col md={4}>
-                                        <Form.Label className="small fw-bold">CIDADE</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            value={dadosExtraidos.ds_cidade_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, ds_cidade_atual: e.target.value.toUpperCase()});
-                                                setStEditadoManual("S");
-                                            }} 
-                                            readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} 
-                                        />
-                                    </Col>
-
-                                    <Col md={3}>
-                                        <Form.Label className="small fw-bold">CEP</Form.Label>
-                                        <Form.Control 
-                                            size="sm" 
-                                            value={dadosExtraidos.nr_cep_atual} 
-                                            onChange={(e) => {
-                                                setDadosExtraidos({...dadosExtraidos, nr_cep_atual: e.target.value});
-                                                setStEditadoManual("S");
-                                            }} 
-                                            readOnly={statusIA !== "concluido" || ehMunicipioOficial || aguardandoDeclaracao} 
-                                        />
-                                    </Col>
-                                    
-                                    <Col md={12} className="mt-3">
-                                        <Form.Label className="small fw-bold text-primary"><FaEnvelope className="me-1"/> E-MAIL</Form.Label>
-                                        <InputGroup size="sm">
-                                            <Form.Control className="text-lowercase fw-bold" value={dadosExtraidos.ds_email_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, ds_email_atual: e.target.value})} readOnly={statusIA !== "concluido" || emailVerificado || aguardandoDeclaracao} placeholder="exemplo@email.com" />
-                                            {dadosExtraidos.ds_email_atual && !emailVerificado && statusIA === "concluido" && !aguardandoDeclaracao && (
-                                                <Button variant="primary" onClick={handleEnviarEmailOtp} disabled={enviandoEmailOtp}>
-                                                    {enviandoEmailOtp ? <Spinner size="sm" animation="border" /> : (emailEnviado ? "Reenviar" : "Verificar")}
-                                                </Button>
-                                            )}
-                                        </InputGroup>
-                                    </Col>
-
-                                    {emailEnviado && !emailVerificado && !aguardandoDeclaracao && (
-                                        <Col md={6}>
-                                            <Form.Label className="small fw-bold text-warning">CÓDIGO E-MAIL</Form.Label>
-                                            <InputGroup size="sm">
-                                                <Form.Control value={codigoOtpEmail} onChange={(e) => setCodigoOtpEmail(e.target.value)} placeholder="CÓDIGO" />
-                                                <Button variant="warning" onClick={handleValidarCodigoEmail} disabled={validandoEmail}>Validar</Button>
-                                            </InputGroup>
-                                        </Col>
-                                    )}
-
-                                    <Col md={12} className="mt-4 pt-3 border-top">
-                                        <h6 className="fw-bold text-primary mb-3"><FaMobileAlt className="me-2"/>Assinatura via Celular</h6>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Label className="small fw-bold text-primary">CELULAR</Form.Label>
-                                        <InputGroup size="sm">
-                                            <Form.Control value={dadosExtraidos.nr_telefone_atual} onChange={(e) => setDadosExtraidos({...dadosExtraidos, nr_telefone_atual: aplicarMascaraTelefone(e.target.value)})} disabled={telefoneVerificado || statusIA !== "concluido" || aguardandoDeclaracao} placeholder="(48) 99999-9999" />
-                                            {!telefoneVerificado && statusIA === "concluido" && !aguardandoDeclaracao && (
-                                                <Button variant="primary" onClick={handleEnviarSms} disabled={enviandoSms}>Enviar SMS</Button>
-                                            )}
-                                        </InputGroup>
-                                    </Col>
-                                    {smsEnviado && !telefoneVerificado && !aguardandoDeclaracao && (
-                                        <Col md={6}>
-                                            <Form.Label className="small fw-bold text-warning">CÓDIGO SMS</Form.Label>
-                                            <InputGroup size="sm">
-                                                <Form.Control value={codigoOtp} onChange={(e) => setCodigoOtp(e.target.value)} />
-                                                <Button variant="warning" onClick={handleValidarCodigo} disabled={validandoSms}>Validar</Button>
-                                            </InputGroup>
-                                        </Col>
-                                    )}
-                                    {telefoneVerificado && <Col md={12}><Alert variant="success" className="py-2 mb-0 small"><FaCheckCircle className="me-2" />Identidade confirmada!</Alert></Col>}
-                                </Row>
-                            </Form>
-                        </Card>
+                        <VerificacaoContato 
+                            dadosExtraidos={dadosExtraidos} setDadosExtraidos={setDadosExtraidos}
+                            statusIA={statusIA} aguardandoDeclaracao={aguardandoDeclaracao}
+                            emailVerificado={emailVerificado} handleEnviarEmailOtp={handleEnviarEmailOtp}
+                            enviandoEmailOtp={enviandoEmailOtp} emailEnviado={emailEnviado}
+                            codigoOtpEmail={codigoOtpEmail} setCodigoOtpEmail={setCodigoOtpEmail}
+                            handleValidarCodigoEmail={handleValidarCodigoEmail} validandoEmail={validandoEmail}
+                            telefoneVerificado={telefoneVerificado} aplicarMascaraTelefone={aplicarMascaraTelefone}
+                            handleEnviarSms={handleEnviarSms} enviandoSms={enviandoSms}
+                            smsEnviado={smsEnviado} codigoOtp={codigoOtp} setCodigoOtp={setCodigoOtp}
+                            handleValidarCodigo={handleValidarCodigo} validandoSms={validandoSms}
+                        />
                     </Col>
                 </Row>
 
-                <div className="text-center mt-4 border-top pt-4">
-                    <Button 
-                        variant="success" size="lg" className="px-5 rounded-pill shadow-lg fw-bold" 
-                        disabled={statusIA !== "concluido" || salvando || !telefoneVerificado || (dadosExtraidos.ds_email_atual && !emailVerificado) || aguardandoDeclaracao || cpfValidoOficial !== true} 
+                <div className="text-center mt-4 mb-4">
+                    <Button variant="success" size="lg" className="w-100 rounded-pill shadow-lg fw-bold py-3" 
+                        disabled={statusIA !== "concluido" || salvando || !telefoneVerificado || (dadosExtraidos.ds_email_atual && !emailVerificado)} 
                         onClick={handleSalvar}
                     >
                         {salvando ? <Spinner size="sm" animation="border" /> : "Confirmar e Finalizar"}
                     </Button>
-                    <div className="mt-3">
-                        <Button variant="link" className="text-muted small text-decoration-none" onClick={() => navigate(-1)}><FaArrowLeft className="me-1" /> Voltar</Button>
-                    </div>
+                    <Button variant="link" className="text-muted small mt-2 text-decoration-none" onClick={() => navigate(-1)}><FaArrowLeft className="me-1" /> Voltar</Button>
                 </div>
             </Container>
+
+            <footer className="text-center py-3 text-muted bg-white border-top mt-auto" style={{fontSize: '10px'}}>Desenvolvido por <strong>PrefeituraPro</strong>. © 2026</footer>
         </div>
     );
 };
