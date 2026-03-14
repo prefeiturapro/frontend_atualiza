@@ -6,8 +6,8 @@ import Autorizacao from "./pages/identificacao/autorizacao";
 import Validacao from "./pages/validacao/validacao";
 import Atualizacao from "./pages/atualizacao/atualizacao"; 
 import Conclusao from "./pages/conclusao/conclusao";
+import Login from "./pages/login";
 
-// IMPORTAÇÃO CORRIGIDA PARA A PASTA ADMIN
 import ValidacaoPrefeitura from "./pages/admin/validacaoprefeitura"; 
 import DadosGerais from "./pages/admin/dadosgerais";
 
@@ -28,6 +28,7 @@ function App() {
         {/* ROTA ADMINISTRATIVA (Prefeitura) */}
         <Route path="/admin/validacao" element={<ValidacaoPrefeitura />} />
         <Route path="/admin/dadosgerais" element={<DadosGerais />} />.
+         <Route path="/login" element={<Login />} />.
 
         {/* COMENTADO PARA NÃO DAR ERRO:
             <Route element={<RotaPrivada />}>

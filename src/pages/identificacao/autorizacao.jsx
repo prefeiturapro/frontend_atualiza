@@ -18,7 +18,18 @@ const Autorizacao = () => {
 
     const handleProsseguir = () => {
         if (aceitou) {
-            navigate("/validacao");
+                const imovelData = JSON.parse(localStorage.getItem("dados_imovel_buscado") || "{}");
+                const configGeral = JSON.parse(localStorage.getItem("config_prefeitura") || "{}");
+
+                const temCMC = imovelData.cd_cmc && imovelData.cd_cmc !== "0" && imovelData.cd_cmc !== 0;
+                const permiteCMC = configGeral.st_bloqueiacmc === 'S';
+
+                if (temCMC && !permiteCMC) {
+                    alert("Atenção: Este cadastro possui vínculo com CMC e não permite atualização via portal. Por favor, entre em contato com a Secretaria de Fazenda.");
+                    return; // Interrompe a navegação
+                }
+
+                navigate("/validacao");
         }
     };
 

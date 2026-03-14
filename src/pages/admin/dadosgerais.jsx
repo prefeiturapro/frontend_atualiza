@@ -137,6 +137,7 @@ const DadosGerais = () => {
                                                 <Form.Check type="switch" label="BLOQUEAR ALTERAÇÃO POR TERCEIROS (RESPONSÁVEL)" name="st_bloqueioresp" checked={form.st_bloqueioresp === 'S'} onChange={handleChange} />
                                                 <Form.Check type="switch" label="VALIDAR CPF NA RECEITA FEDERAL" name="st_checkcpf" checked={form.st_checkcpf === 'S'} onChange={handleChange} className="mt-2" />
                                                 <Form.Check type="switch" label="VALIDAR CNPJ NA RECEITA FEDERAL" name="st_checkcnpj" checked={form.st_checkcnpj === 'S'} onChange={handleChange} className="mt-2" />
+                                                <Form.Check  type="switch" label="PERMITIR ATUALIZAÇÃO COM VÍNCULO DE CMC" name="st_bloqueiacmc" checked={form.st_bloqueiacmc === 'S'} onChange={handleChange} className="mt-2" />
                                                 <Form.Check type="switch" label="APROVAÇÃO AUTOMÁTICA DE ATUALIZAÇÕES" name="st_aprovacaoaut" checked={form.st_aprovacaoaut === 'S'} onChange={handleChange} className="mt-2 text-primary fw-bold" />
                                             </div>
                                         </Col>

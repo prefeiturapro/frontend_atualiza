@@ -4,7 +4,9 @@ import {
     Form, Modal, Spinner, Navbar, Alert 
 } from 'react-bootstrap';
 import { 
-    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle, FaCheckCircle, FaBuilding, FaMapMarkedAlt, FaUserEdit
+    FaCheck, FaTimes, FaUniversity, FaSyncAlt, FaInfoCircle, FaEnvelope, FaMobileAlt, FaEye, 
+    FaHistory, FaCheckDouble, FaIdCard, FaUserAlt, FaExclamationTriangle, FaCheckCircle, 
+    FaBuilding, FaMapMarkedAlt, FaUserEdit, FaDownload
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
@@ -21,20 +23,6 @@ const ValidacaoPrefeitura = () => {
     const [processando, setProcessando] = useState(false);
     
     const [configPrefeitura, setConfigPrefeitura] = useState({ NOME: "", logo: "" });
-
-    // --- FUNÇÃO DE SIMILARIDADE (MANTIDA PARA USO INTERNO SE NECESSÁRIO) ---
-    const calcularSimilaridade = (str1, str2) => {
-        if (!str1 || !str2) return 0;
-        const s1 = str1.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        const s2 = str2.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        if (s1 === s2) return 100;
-        const palavrasS1 = s1.split(/\s+/).filter(p => p.length > 1);
-        const palavrasS2 = s2.split(/\s+/).filter(p => p.length > 1);
-        const matches = palavrasS1.filter(p1 => 
-            palavrasS2.some(p2 => p2.includes(p1) || p1.includes(p2))
-        );
-        return (matches.length / Math.max(palavrasS1.length, palavrasS2.length)) * 100;
-    };
 
     useEffect(() => {
         const storedConfig = localStorage.getItem("config_prefeitura");
@@ -54,7 +42,6 @@ const ValidacaoPrefeitura = () => {
             
             let listaFiltrada = Array.isArray(data) ? data : [];
 
-            // --- FILTRO DE PROPRIEDADE BASEADO NA SUA NOVA REGRA ---
             if (filtroPropriedade === "MUDANCA") {
                 listaFiltrada = listaFiltrada.filter(p => p.st_responsavel === "S");
             } else if (filtroPropriedade === "MESMO") {
@@ -97,6 +84,39 @@ const ValidacaoPrefeitura = () => {
         setDadosOriginais(null);
         setShowModal(true);
         carregarBaseOriginal(pedido.cd_reduzido_imovel);
+    };
+
+    // --- FUNÇÃO PARA DOWNLOAD DO COMPROVANTE (ds_comprovante) ---
+    const handleDownloadIA = (item) => {
+        const arquivo = item.ds_comprovante; 
+
+        if (!arquivo) {
+            alert("Comprovante não localizado no banco de dados.");
+            return;
+        }
+
+        try {
+            let urlDownload;
+
+            // Se for Buffer do Postgres
+            if (typeof arquivo === 'object' && arquivo.type === 'Buffer' && Array.isArray(arquivo.data)) {
+                const blob = new Blob([new Uint8Array(arquivo.data)], { type: 'image/jpeg' });
+                urlDownload = URL.createObjectURL(blob);
+            } else {
+                // Se for String (Base64 ou URL)
+                urlDownload = arquivo;
+            }
+
+            const link = document.createElement("a");
+            link.href = urlDownload;
+            link.download = `COMPROVANTE_PROTOCOLO_${item.ds_protocolo}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error("Erro no download:", err);
+            alert("Erro ao processar arquivo para download.");
+        }
     };
 
     const handleAcao = async (id, acao) => {
@@ -158,7 +178,6 @@ const ValidacaoPrefeitura = () => {
                                     <h5 className="fw-bold mb-0 text-uppercase">Validação</h5>
                                 </div>
                             </Col>
-
                             <Col lg={3}>
                                 <Form.Select size="sm" className="rounded-pill border-primary fw-bold" value={filtroEdicao} onChange={(e) => setFiltroEdicao(e.target.value)}>
                                     <option value="TODOS">DADOS: TODOS</option>
@@ -166,7 +185,6 @@ const ValidacaoPrefeitura = () => {
                                     <option value="S">ALTERADOS MANUALMENTE</option>
                                 </Form.Select>
                             </Col>
-
                             <Col lg={3}>
                                 <Form.Select size="sm" className="rounded-pill border-danger fw-bold" value={filtroPropriedade} onChange={(e) => setFiltroPropriedade(e.target.value)}>
                                     <option value="TODOS">PROPRIEDADE: TODOS</option>
@@ -174,7 +192,6 @@ const ValidacaoPrefeitura = () => {
                                     <option value="MESMO">✓ MANUTENÇÃO</option>
                                 </Form.Select>
                             </Col>
-
                             <Col lg={3} className="text-end">
                                 <Button variant="success" size="sm" className="rounded-pill px-3 shadow-sm fw-bold text-uppercase w-100" onClick={handleAtualizarLote} disabled={processando || pedidos.length === 0}>
                                     <FaCheckDouble className="me-1"/> Aprovar Lista
@@ -201,44 +218,39 @@ const ValidacaoPrefeitura = () => {
                                 <tr><td colSpan="6" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
                             ) : pedidos.length === 0 ? (
                                 <tr><td colSpan="6" className="text-center py-5 text-muted">Nenhum pedido pendente para este filtro.</td></tr>
-                            ) : pedidos.map(p => {
-                                // --- REGRA SOLICITADA: MUDANÇA SOMENTE SE st_responsavel === 'S' ---
-                                const ehMudanca = p.st_responsavel === 'S';
-
-                                return (
-                                    <tr key={p.id_dados_contribuintes}>
-                                        <td className="align-middle text-center">
-                                            <div className="fw-bold text-primary">{p.cd_reduzido_imovel}</div>
-                                            <div className="text-muted small" style={{fontSize: '10px'}}>{p.ds_inscricao_imovel}</div>
-                                        </td>
-                                        <td className="align-middle">
-                                            <div className="fw-bold">{p.nm_contribuinte}</div>
-                                            <div className="text-muted small">CÓD: {p.cd_contribuinte}</div>
-                                        </td>
-                                        <td className="text-center align-middle">
-                                            {ehMudanca ? (
-                                                <Badge bg="danger" className="p-2"><FaUserEdit className="me-1"/> MUDANÇA</Badge>
-                                            ) : (
-                                                <Badge bg="light" text="dark" className="border text-muted">MANUTENÇÃO</Badge>
-                                            )}
-                                        </td>
-                                        <td className="align-middle">
-                                            <div className="fw-bold">{p.dt_atualizacao ? new Date(p.dt_atualizacao).toLocaleDateString('pt-BR') : '---'}</div>
-                                            <div className="text-muted small">{p.ds_protocolo}</div>
-                                        </td>
-                                        <td className="text-center align-middle">
-                                            <Badge bg={p.st_editado_manual === 'S' ? "warning" : "success"} text={p.st_editado_manual === 'S' ? "dark" : "white"}>
-                                                {p.st_editado_manual === 'S' ? "ALTERADO" : "ORIGINAL"}
-                                            </Badge>
-                                        </td>
-                                        <td className="text-center align-middle">
-                                            <Button variant="outline-primary" size="sm" className="rounded-pill" onClick={() => handleAbrirAnalise(p)}>
-                                                <FaEye className="me-1"/> Analisar
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                            ) : pedidos.map(p => (
+                                <tr key={p.id_dados_contribuintes}>
+                                    <td className="align-middle text-center">
+                                        <div className="fw-bold text-primary">{p.cd_reduzido_imovel}</div>
+                                        <div className="text-muted small" style={{fontSize: '10px'}}>{p.ds_inscricao_imovel}</div>
+                                    </td>
+                                    <td className="align-middle">
+                                        <div className="fw-bold">{p.nm_contribuinte}</div>
+                                        <div className="text-muted small">CÓD: {p.cd_contribuinte}</div>
+                                    </td>
+                                    <td className="text-center align-middle">
+                                        {p.st_responsavel === 'S' ? (
+                                            <Badge bg="danger" className="p-2"><FaUserEdit className="me-1"/> MUDANÇA</Badge>
+                                        ) : (
+                                            <Badge bg="light" text="dark" className="border text-muted">MANUTENÇÃO</Badge>
+                                        )}
+                                    </td>
+                                    <td className="align-middle">
+                                        <div className="fw-bold">{p.dt_atualizacao ? new Date(p.dt_atualizacao).toLocaleDateString('pt-BR') : '---'}</div>
+                                        <div className="text-muted small">{p.ds_protocolo}</div>
+                                    </td>
+                                    <td className="text-center align-middle">
+                                        <Badge bg={p.st_editado_manual === 'S' ? "warning" : "success"} text={p.st_editado_manual === 'S' ? "dark" : "white"}>
+                                            {p.st_editado_manual === 'S' ? "ALTERADO" : "ORIGINAL"}
+                                        </Badge>
+                                    </td>
+                                    <td className="text-center align-middle">
+                                        <Button variant="outline-primary" size="sm" className="rounded-pill" onClick={() => handleAbrirAnalise(p)}>
+                                            <FaEye className="me-1"/> Analisar
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </Table>
                 </Card>
@@ -304,54 +316,52 @@ const ValidacaoPrefeitura = () => {
                                             <div className="mb-1"><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_extr || '---'}</div>
                                             <div className="mb-1"><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_extr || '---'}</div>
                                             <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_extr || '---'}</div>
+                                            
+                                            {/* BOTÃO DE DOWNLOAD CONFIGURADO COM ds_comprovante */}
+                                            <div className="mt-3 pt-2 border-top">
+                                                <Button 
+                                                    variant="outline-success" 
+                                                    size="sm" 
+                                                    className="w-100 fw-bold rounded-pill shadow-sm"
+                                                    onClick={() => handleDownloadIA(itemSelecionado)}
+                                                >
+                                                    <FaDownload className="me-2"/> Baixar Comprovante (IA)
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </Col>
 
                                 <Col md={4}>
-                                    {(() => {
-                                        // --- REGRA NO MODAL: MUDANÇA SOMENTE SE st_responsavel === 'S' ---
-                                        const ehDiferente = itemSelecionado.st_responsavel === 'S';
-
-                                        return (
-                                            <div 
-                                                className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${ehDiferente ? "border-danger border-3 shadow" : "border-primary"}`} 
-                                                style={{ borderTop: '6px solid #0d6efd' }}
-                                            >
-                                                <h6 className="fw-bold text-primary small border-bottom pb-2 d-flex align-items-center">
-                                                    <FaInfoCircle className="me-2"/> DADOS PARA ATUALIZAR
-                                                </h6>
-                                                
-                                                <div style={{fontSize: '11px'}}>
-                                                    {ehDiferente && (
-                                                        <Alert variant="danger" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold animate__animated animate__pulse animate__infinite" style={{fontSize: '10px'}}>
-                                                            <FaExclamationTriangle className="me-2"/> MUDANÇA DE RESPONSÁVEL
-                                                        </Alert>
-                                                    )}
-
-                                                    <div className={`mb-2 p-2 rounded border ${ehDiferente ? "border-danger bg-danger bg-opacity-10" : "border-primary bg-primary bg-opacity-10"}`}>
-                                                        <div className="fw-bold small text-muted">NOME INFORMADO:</div>
-                                                        <div className="fw-bold text-dark">{itemSelecionado.nm_contribuinte}</div>
-                                                        <div className="mt-1 fw-bold small text-muted">CPF INFORMADO:</div>
-                                                        <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || '---'}</div>
-                                                    </div>
-
-                                                    <div className="mb-1"><strong>NOVA RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
-                                                    <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_atual}</div>
-                                                    <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_atual}</div>
-                                                    <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_atual}</div>
-                                                    <div className="mb-1"><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_atual || '---'}</div>
-                                                    <div className="mb-1"><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_atual || '---'}</div>
-                                                    <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_atual || '---'}</div>
-
-                                                    <div className="mt-2 pt-2 border-top">
-                                                        <div className="small text-lowercase"><FaEnvelope className="me-1"/>{itemSelecionado.ds_email_atual || '---'}</div>
-                                                        <div className="small"><FaMobileAlt className="me-1"/>{itemSelecionado.nr_telefone_atual || '---'}</div>
-                                                    </div>
-                                                </div>
+                                    <div className={`p-3 bg-white rounded-4 border shadow-sm h-100 ${itemSelecionado.st_responsavel === 'S' ? "border-danger border-3 shadow" : "border-primary"}`} style={{ borderTop: '6px solid #0d6efd' }}>
+                                        <h6 className="fw-bold text-primary small border-bottom pb-2 d-flex align-items-center">
+                                            <FaInfoCircle className="me-2"/> DADOS PARA ATUALIZAR
+                                        </h6>
+                                        <div style={{fontSize: '11px'}}>
+                                            {itemSelecionado.st_responsavel === 'S' && (
+                                                <Alert variant="danger" className="py-1 px-2 mb-2 d-flex align-items-center fw-bold" style={{fontSize: '10px'}}>
+                                                    <FaExclamationTriangle className="me-2"/> MUDANÇA DE RESPONSÁVEL
+                                                </Alert>
+                                            )}
+                                            <div className={`mb-2 p-2 rounded border ${itemSelecionado.st_responsavel === 'S' ? "border-danger bg-danger bg-opacity-10" : "border-primary bg-primary bg-opacity-10"}`}>
+                                                <div className="fw-bold small text-muted">NOME INFORMADO:</div>
+                                                <div className="fw-bold text-dark">{itemSelecionado.nm_contribuinte}</div>
+                                                <div className="mt-1 fw-bold small text-muted">CPF INFORMADO:</div>
+                                                <div className="fw-bold text-dark">{itemSelecionado.nr_cpf_atual || '---'}</div>
                                             </div>
-                                        );
-                                    })()}
+                                            <div className="mb-1"><strong>NOVA RUA:</strong> {itemSelecionado.nm_rua_atual}</div>
+                                            <div className="mb-1"><strong>Nº:</strong> {itemSelecionado.ds_numero_atual}</div>
+                                            <div className="mb-1"><strong>BAIRRO:</strong> {itemSelecionado.ds_bairro_atual}</div>
+                                            <div className="mb-1"><strong>CEP:</strong> {itemSelecionado.nr_cep_atual}</div>
+                                            <div className="mb-1"><strong>LOTEAMENTO:</strong> {itemSelecionado.ds_loteamento_atual || '---'}</div>
+                                            <div className="mb-1"><strong>EDIFÍCIO:</strong> {itemSelecionado.ds_edificio_atual || '---'}</div>
+                                            <div className="mb-1"><strong>COMPLEMENTO:</strong> {itemSelecionado.ds_complemento_atual || '---'}</div>
+                                            <div className="mt-2 pt-2 border-top">
+                                                <div className="small text-lowercase"><FaEnvelope className="me-1"/>{itemSelecionado.ds_email_atual || '---'}</div>
+                                                <div className="small"><FaMobileAlt className="me-1"/>{itemSelecionado.nr_telefone_atual || '---'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </Col>
                             </Row>
                         </>
